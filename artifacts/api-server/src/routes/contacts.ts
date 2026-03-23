@@ -5,7 +5,7 @@ import { eq, ilike, and, or } from "drizzle-orm";
 
 const router: IRouter = Router();
 
-function formatContact(contact: typeof contactsTable.$inferSelect, orgName?: string | null) {
+function format(contact: typeof contactsTable.$inferSelect, orgName?: string | null) {
   return {
     ...contact,
     organisationName: orgName ?? null,
@@ -17,7 +17,6 @@ function formatContact(contact: typeof contactsTable.$inferSelect, orgName?: str
 router.get("/", async (req, res) => {
   try {
     const { search, organisationId } = req.query as Record<string, string>;
-
     const conditions = [];
     if (search) {
       conditions.push(
@@ -32,16 +31,13 @@ router.get("/", async (req, res) => {
     if (organisationId) conditions.push(eq(contactsTable.organisationId, Number(organisationId)));
 
     const rows = await db
-      .select({
-        contact: contactsTable,
-        orgName: organisationsTable.name,
-      })
+      .select({ contact: contactsTable, orgName: organisationsTable.name })
       .from(contactsTable)
       .leftJoin(organisationsTable, eq(contactsTable.organisationId, organisationsTable.id))
       .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(contactsTable.lastName, contactsTable.firstName);
 
-    res.json(rows.map((r) => formatContact(r.contact, r.orgName)));
+    res.json(rows.map((r) => format(r.contact, r.orgName)));
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Internal server error" });
@@ -50,15 +46,13 @@ router.get("/", async (req, res) => {
 
 router.get("/:id", async (req, res) => {
   try {
-    const id = Number(req.params.id);
     const [row] = await db
       .select({ contact: contactsTable, orgName: organisationsTable.name })
       .from(contactsTable)
       .leftJoin(organisationsTable, eq(contactsTable.organisationId, organisationsTable.id))
-      .where(eq(contactsTable.id, id));
-
+      .where(eq(contactsTable.id, Number(req.params.id)));
     if (!row) return res.status(404).json({ error: "Not found" });
-    res.json(formatContact(row.contact, row.orgName));
+    res.json(format(row.contact, row.orgName));
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Internal server error" });
@@ -67,21 +61,13 @@ router.get("/:id", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    const [contact] = await db
-      .insert(contactsTable)
-      .values({ ...req.body, updatedAt: new Date() })
-      .returning();
-
+    const [contact] = await db.insert(contactsTable).values({ ...req.body, updatedAt: new Date() }).returning();
     let orgName = null;
     if (contact.organisationId) {
-      const [org] = await db
-        .select({ name: organisationsTable.name })
-        .from(organisationsTable)
-        .where(eq(organisationsTable.id, contact.organisationId));
+      const [org] = await db.select({ name: organisationsTable.name }).from(organisationsTable).where(eq(organisationsTable.id, contact.organisationId));
       orgName = org?.name ?? null;
     }
-
-    res.status(201).json(formatContact(contact, orgName));
+    res.status(201).json(format(contact, orgName));
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Internal server error" });
@@ -90,25 +76,14 @@ router.post("/", async (req, res) => {
 
 router.put("/:id", async (req, res) => {
   try {
-    const id = Number(req.params.id);
-    const [contact] = await db
-      .update(contactsTable)
-      .set({ ...req.body, updatedAt: new Date() })
-      .where(eq(contactsTable.id, id))
-      .returning();
-
+    const [contact] = await db.update(contactsTable).set({ ...req.body, updatedAt: new Date() }).where(eq(contactsTable.id, Number(req.params.id))).returning();
     if (!contact) return res.status(404).json({ error: "Not found" });
-
     let orgName = null;
     if (contact.organisationId) {
-      const [org] = await db
-        .select({ name: organisationsTable.name })
-        .from(organisationsTable)
-        .where(eq(organisationsTable.id, contact.organisationId));
+      const [org] = await db.select({ name: organisationsTable.name }).from(organisationsTable).where(eq(organisationsTable.id, contact.organisationId));
       orgName = org?.name ?? null;
     }
-
-    res.json(formatContact(contact, orgName));
+    res.json(format(contact, orgName));
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Internal server error" });
@@ -117,8 +92,7 @@ router.put("/:id", async (req, res) => {
 
 router.delete("/:id", async (req, res) => {
   try {
-    const id = Number(req.params.id);
-    await db.delete(contactsTable).where(eq(contactsTable.id, id));
+    await db.delete(contactsTable).where(eq(contactsTable.id, Number(req.params.id)));
     res.status(204).send();
   } catch (err) {
     req.log.error(err);

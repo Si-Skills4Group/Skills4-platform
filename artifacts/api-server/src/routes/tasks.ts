@@ -1,21 +1,21 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { tasksTable, organisationsTable, engagementsTable, contactsTable } from "@workspace/db/schema";
+import { tasksTable, organisationsTable, engagementsTable, usersTable } from "@workspace/db/schema";
 import { eq, ilike, and, or } from "drizzle-orm";
 
 const router: IRouter = Router();
 
-function formatTask(
+function format(
   task: typeof tasksTable.$inferSelect,
   orgName?: string | null,
   engagementTitle?: string | null,
-  contactName?: string | null
+  assignedUserName?: string | null
 ) {
   return {
     ...task,
     organisationName: orgName ?? null,
     engagementTitle: engagementTitle ?? null,
-    contactName: contactName ?? null,
+    assignedUserName: assignedUserName ?? null,
     createdAt: task.createdAt.toISOString(),
     updatedAt: task.updatedAt.toISOString(),
   };
@@ -23,18 +23,11 @@ function formatTask(
 
 router.get("/", async (req, res) => {
   try {
-    const { search, status, organisationId, engagementId } = req.query as Record<string, string>;
-
+    const { search, status, priority, organisationId, engagementId } = req.query as Record<string, string>;
     const conditions = [];
-    if (search) {
-      conditions.push(
-        or(
-          ilike(tasksTable.title, `%${search}%`),
-          ilike(tasksTable.description, `%${search}%`)
-        )
-      );
-    }
+    if (search) conditions.push(or(ilike(tasksTable.title, `%${search}%`), ilike(tasksTable.description, `%${search}%`)));
     if (status) conditions.push(eq(tasksTable.status, status));
+    if (priority) conditions.push(eq(tasksTable.priority, priority));
     if (organisationId) conditions.push(eq(tasksTable.organisationId, Number(organisationId)));
     if (engagementId) conditions.push(eq(tasksTable.engagementId, Number(engagementId)));
 
@@ -43,28 +36,16 @@ router.get("/", async (req, res) => {
         task: tasksTable,
         orgName: organisationsTable.name,
         engTitle: engagementsTable.title,
-        contactFirstName: contactsTable.firstName,
-        contactLastName: contactsTable.lastName,
+        userFullName: usersTable.fullName,
       })
       .from(tasksTable)
       .leftJoin(organisationsTable, eq(tasksTable.organisationId, organisationsTable.id))
       .leftJoin(engagementsTable, eq(tasksTable.engagementId, engagementsTable.id))
-      .leftJoin(contactsTable, eq(tasksTable.contactId, contactsTable.id))
+      .leftJoin(usersTable, eq(tasksTable.assignedUserId, usersTable.id))
       .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(tasksTable.dueDate, tasksTable.priority);
 
-    res.json(
-      rows.map((r) =>
-        formatTask(
-          r.task,
-          r.orgName,
-          r.engTitle,
-          r.contactFirstName && r.contactLastName
-            ? `${r.contactFirstName} ${r.contactLastName}`
-            : null
-        )
-      )
-    );
+    res.json(rows.map((r) => format(r.task, r.orgName, r.engTitle, r.userFullName)));
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Internal server error" });
@@ -73,33 +54,15 @@ router.get("/", async (req, res) => {
 
 router.get("/:id", async (req, res) => {
   try {
-    const id = Number(req.params.id);
     const [row] = await db
-      .select({
-        task: tasksTable,
-        orgName: organisationsTable.name,
-        engTitle: engagementsTable.title,
-        contactFirstName: contactsTable.firstName,
-        contactLastName: contactsTable.lastName,
-      })
+      .select({ task: tasksTable, orgName: organisationsTable.name, engTitle: engagementsTable.title, userFullName: usersTable.fullName })
       .from(tasksTable)
       .leftJoin(organisationsTable, eq(tasksTable.organisationId, organisationsTable.id))
       .leftJoin(engagementsTable, eq(tasksTable.engagementId, engagementsTable.id))
-      .leftJoin(contactsTable, eq(tasksTable.contactId, contactsTable.id))
-      .where(eq(tasksTable.id, id));
-
+      .leftJoin(usersTable, eq(tasksTable.assignedUserId, usersTable.id))
+      .where(eq(tasksTable.id, Number(req.params.id)));
     if (!row) return res.status(404).json({ error: "Not found" });
-
-    res.json(
-      formatTask(
-        row.task,
-        row.orgName,
-        row.engTitle,
-        row.contactFirstName && row.contactLastName
-          ? `${row.contactFirstName} ${row.contactLastName}`
-          : null
-      )
-    );
+    res.json(format(row.task, row.orgName, row.engTitle, row.userFullName));
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Internal server error" });
@@ -108,12 +71,8 @@ router.get("/:id", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    const [task] = await db
-      .insert(tasksTable)
-      .values({ ...req.body, updatedAt: new Date() })
-      .returning();
-
-    let orgName = null, engTitle = null, contactName = null;
+    const [task] = await db.insert(tasksTable).values({ ...req.body, updatedAt: new Date() }).returning();
+    let orgName = null, engTitle = null, assignedUserName = null;
     if (task.organisationId) {
       const [o] = await db.select({ name: organisationsTable.name }).from(organisationsTable).where(eq(organisationsTable.id, task.organisationId));
       orgName = o?.name ?? null;
@@ -122,12 +81,11 @@ router.post("/", async (req, res) => {
       const [e] = await db.select({ title: engagementsTable.title }).from(engagementsTable).where(eq(engagementsTable.id, task.engagementId));
       engTitle = e?.title ?? null;
     }
-    if (task.contactId) {
-      const [c] = await db.select({ firstName: contactsTable.firstName, lastName: contactsTable.lastName }).from(contactsTable).where(eq(contactsTable.id, task.contactId));
-      contactName = c ? `${c.firstName} ${c.lastName}` : null;
+    if (task.assignedUserId) {
+      const [u] = await db.select({ fullName: usersTable.fullName }).from(usersTable).where(eq(usersTable.id, task.assignedUserId));
+      assignedUserName = u?.fullName ?? null;
     }
-
-    res.status(201).json(formatTask(task, orgName, engTitle, contactName));
+    res.status(201).json(format(task, orgName, engTitle, assignedUserName));
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Internal server error" });
@@ -136,16 +94,9 @@ router.post("/", async (req, res) => {
 
 router.put("/:id", async (req, res) => {
   try {
-    const id = Number(req.params.id);
-    const [task] = await db
-      .update(tasksTable)
-      .set({ ...req.body, updatedAt: new Date() })
-      .where(eq(tasksTable.id, id))
-      .returning();
-
+    const [task] = await db.update(tasksTable).set({ ...req.body, updatedAt: new Date() }).where(eq(tasksTable.id, Number(req.params.id))).returning();
     if (!task) return res.status(404).json({ error: "Not found" });
-
-    let orgName = null, engTitle = null, contactName = null;
+    let orgName = null, engTitle = null, assignedUserName = null;
     if (task.organisationId) {
       const [o] = await db.select({ name: organisationsTable.name }).from(organisationsTable).where(eq(organisationsTable.id, task.organisationId));
       orgName = o?.name ?? null;
@@ -154,12 +105,11 @@ router.put("/:id", async (req, res) => {
       const [e] = await db.select({ title: engagementsTable.title }).from(engagementsTable).where(eq(engagementsTable.id, task.engagementId));
       engTitle = e?.title ?? null;
     }
-    if (task.contactId) {
-      const [c] = await db.select({ firstName: contactsTable.firstName, lastName: contactsTable.lastName }).from(contactsTable).where(eq(contactsTable.id, task.contactId));
-      contactName = c ? `${c.firstName} ${c.lastName}` : null;
+    if (task.assignedUserId) {
+      const [u] = await db.select({ fullName: usersTable.fullName }).from(usersTable).where(eq(usersTable.id, task.assignedUserId));
+      assignedUserName = u?.fullName ?? null;
     }
-
-    res.json(formatTask(task, orgName, engTitle, contactName));
+    res.json(format(task, orgName, engTitle, assignedUserName));
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Internal server error" });
@@ -168,8 +118,7 @@ router.put("/:id", async (req, res) => {
 
 router.delete("/:id", async (req, res) => {
   try {
-    const id = Number(req.params.id);
-    await db.delete(tasksTable).where(eq(tasksTable.id, id));
+    await db.delete(tasksTable).where(eq(tasksTable.id, Number(req.params.id)));
     res.status(204).send();
   } catch (err) {
     req.log.error(err);

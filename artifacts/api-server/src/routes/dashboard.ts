@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { organisationsTable, contactsTable, engagementsTable, tasksTable } from "@workspace/db/schema";
-import { eq, lt, sql, and, or, ne } from "drizzle-orm";
+import { eq, sql, and, or, ne } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -9,26 +9,13 @@ router.get("/summary", async (req, res) => {
   try {
     const today = new Date().toISOString().split("T")[0];
 
-    const [[orgCount], [contactCount], [engCount], [openTaskCount], [overdueCount]] =
-      await Promise.all([
-        db.select({ count: sql<number>`count(*)::int` }).from(organisationsTable),
-        db.select({ count: sql<number>`count(*)::int` }).from(contactsTable),
-        db.select({ count: sql<number>`count(*)::int` }).from(engagementsTable),
-        db
-          .select({ count: sql<number>`count(*)::int` })
-          .from(tasksTable)
-          .where(or(eq(tasksTable.status, "open"), eq(tasksTable.status, "in_progress"))),
-        db
-          .select({ count: sql<number>`count(*)::int` })
-          .from(tasksTable)
-          .where(
-            and(
-              sql`${tasksTable.dueDate} < ${today}`,
-              ne(tasksTable.status, "completed"),
-              ne(tasksTable.status, "cancelled")
-            )
-          ),
-      ]);
+    const [[orgCount], [contactCount], [engCount], [openTaskCount], [overdueCount]] = await Promise.all([
+      db.select({ count: sql<number>`count(*)::int` }).from(organisationsTable),
+      db.select({ count: sql<number>`count(*)::int` }).from(contactsTable),
+      db.select({ count: sql<number>`count(*)::int` }).from(engagementsTable).where(eq(engagementsTable.status, "open")),
+      db.select({ count: sql<number>`count(*)::int` }).from(tasksTable).where(or(eq(tasksTable.status, "open"), eq(tasksTable.status, "in_progress"))),
+      db.select({ count: sql<number>`count(*)::int` }).from(tasksTable).where(eq(tasksTable.status, "overdue")),
+    ]);
 
     const stageRows = await db
       .select({ stage: engagementsTable.stage, count: sql<number>`count(*)::int` })
@@ -36,25 +23,18 @@ router.get("/summary", async (req, res) => {
       .groupBy(engagementsTable.stage);
 
     const recentEngagementRows = await db
-      .select({
-        engagement: engagementsTable,
-        orgName: organisationsTable.name,
-      })
+      .select({ engagement: engagementsTable, orgName: organisationsTable.name })
       .from(engagementsTable)
       .leftJoin(organisationsTable, eq(engagementsTable.organisationId, organisationsTable.id))
       .orderBy(sql`${engagementsTable.updatedAt} DESC`)
       .limit(5);
 
     const upcomingTaskRows = await db
-      .select({
-        task: tasksTable,
-        orgName: organisationsTable.name,
-        engTitle: engagementsTable.title,
-      })
+      .select({ task: tasksTable, orgName: organisationsTable.name, engTitle: engagementsTable.title })
       .from(tasksTable)
       .leftJoin(organisationsTable, eq(tasksTable.organisationId, organisationsTable.id))
       .leftJoin(engagementsTable, eq(tasksTable.engagementId, engagementsTable.id))
-      .where(or(eq(tasksTable.status, "open"), eq(tasksTable.status, "in_progress")))
+      .where(or(eq(tasksTable.status, "open"), eq(tasksTable.status, "in_progress"), eq(tasksTable.status, "overdue")))
       .orderBy(tasksTable.dueDate, tasksTable.priority)
       .limit(5);
 
@@ -67,9 +47,10 @@ router.get("/summary", async (req, res) => {
       engagementsByStage: stageRows.map((r) => ({ stage: r.stage, count: r.count })),
       recentEngagements: recentEngagementRows.map((r) => ({
         ...r.engagement,
-        value: r.engagement.value ? Number(r.engagement.value) : null,
+        expectedValue: r.engagement.expectedValue ? Number(r.engagement.expectedValue) : null,
         organisationName: r.orgName ?? null,
         contactName: null,
+        ownerName: null,
         createdAt: r.engagement.createdAt.toISOString(),
         updatedAt: r.engagement.updatedAt.toISOString(),
       })),
@@ -77,7 +58,7 @@ router.get("/summary", async (req, res) => {
         ...r.task,
         organisationName: r.orgName ?? null,
         engagementTitle: r.engTitle ?? null,
-        contactName: null,
+        assignedUserName: null,
         createdAt: r.task.createdAt.toISOString(),
         updatedAt: r.task.updatedAt.toISOString(),
       })),

@@ -75,15 +75,84 @@ All routes under `/api/`:
 
 ## Database Schema
 
-Located in `lib/db/src/schema/`:
-- `organisations.ts` — Organisation model (= D365 Account)
-- `contacts.ts` — Contact model (= D365 Contact), FK to organisations
-- `engagements.ts` — Engagement model (= D365 Opportunity), FK to orgs and contacts
-- `tasks.ts` — Task model (= D365 Activity/Task), FK to orgs, engagements, contacts
+Located in `lib/db/src/schema/`. Each file contains D365 field-mapping comments at the top.
+
+### `users.ts` — User (D365: SystemUser)
+| Column | Type | Notes |
+|---|---|---|
+| id | serial PK | |
+| full_name | text | D365: fullname |
+| email | text UNIQUE | D365: internalemailaddress |
+| role | text | admin / user |
+| is_active | boolean | D365: isdisabled (inverted) |
+| created_at / updated_at | timestamp | |
+
+### `organisations.ts` — Organisation (D365: Account)
+| Column | Type | Notes |
+|---|---|---|
+| id | serial PK | |
+| name | text | D365: name |
+| type | text | employer / training_provider / partner → customertypecode |
+| sector | text | D365: industrycode |
+| region | text | D365: address1_stateorprovince |
+| status | text | prospect / active / dormant / closed → statuscode |
+| owner_user_id | int FK → users | D365: ownerid |
+| website / phone / notes | text | |
+
+### `contacts.ts` — Contact (D365: Contact)
+| Column | Type | Notes |
+|---|---|---|
+| id | serial PK | |
+| organisation_id | int FK → organisations | D365: parentcustomerid |
+| first_name / last_name | text | D365: firstname / lastname |
+| job_title | text | D365: jobtitle |
+| email / phone | text | D365: emailaddress1 / telephone1 |
+| preferred_contact_method | text | email / phone / post / no_preference → preferredcontactmethodcode |
+| notes | text | D365: description |
+
+### `engagements.ts` — Engagement (D365: Opportunity)
+| Column | Type | Notes |
+|---|---|---|
+| id | serial PK | |
+| organisation_id | int FK → organisations | D365: customerid |
+| primary_contact_id | int FK → contacts | D365: parentcontactid |
+| owner_user_id | int FK → users | D365: ownerid |
+| title | text | D365: name |
+| stage | text | lead / contacted / meeting_booked / proposal / active / won / dormant |
+| status | text | open / closed_won / closed_lost / on_hold → statuscode |
+| expected_learner_volume | int | D365: custom crm_expectedlearnervolume |
+| expected_value | numeric | D365: estimatedvalue |
+| probability | int | D365: closeprobability |
+| last_contact_date | text | D365: custom crm_lastcontactdate |
+| next_action_date | text | D365: custom crm_nextactiondate |
+| next_action_note | text | D365: custom crm_nextactionnote |
+| notes | text | D365: description |
+
+### `tasks.ts` — Task (D365: Task / Activity)
+| Column | Type | Notes |
+|---|---|---|
+| id | serial PK | |
+| organisation_id | int FK → organisations | D365: regardingobjectid (Account) |
+| engagement_id | int FK → engagements | D365: regardingobjectid (Opportunity) |
+| assigned_user_id | int FK → users | D365: ownerid |
+| title | text | D365: subject |
+| description | text | D365: description |
+| due_date | text | D365: scheduledend |
+| priority | text | low / medium / high → prioritycode |
+| status | text | open / in_progress / completed / overdue → statuscode |
+
+## Indexes
+
+All FK columns are indexed. Additional indexes:
+- `users`: email (unique), is_active
+- `organisations`: name, status, type, sector, region, owner_user_id
+- `contacts`: organisation_id, last_name, email
+- `engagements`: organisation_id, stage, status, owner_user_id, next_action_date
+- `tasks`: organisation_id, engagement_id, assigned_user_id, status, priority, due_date
 
 ## Seeding
 
-Run seed data (6 orgs, 6 contacts, 6 engagements, 8 tasks):
+Run seed data (4 users, 7 orgs, 7 contacts, 7 engagements, 9 tasks):
 ```bash
 pnpm --filter @workspace/scripts run seed
 ```
