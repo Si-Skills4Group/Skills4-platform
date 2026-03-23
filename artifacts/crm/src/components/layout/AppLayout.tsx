@@ -63,7 +63,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/20">
               <Building2 size={18} strokeWidth={2.5} />
             </div>
-            <span className="font-display font-bold text-xl tracking-tight text-white">EngageCRM</span>
+            <span className="font-display font-bold text-xl tracking-tight text-white">Skills4CRM</span>
           </div>
         </div>
 
