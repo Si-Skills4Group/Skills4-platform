@@ -6,10 +6,7 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export type ListTasksParams = {
-  search?: string;
-  status?: string;
-  priority?: string;
-  organisationId?: number;
-  engagementId?: number;
-};
+export interface LoginRequest {
+  email: string;
+  password: string;
+}

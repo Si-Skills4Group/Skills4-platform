@@ -5,11 +5,9 @@
  * Employer Engagement CRM API — Skills4CRM
  * OpenAPI spec version: 0.2.0
  */
+import type { User } from "./user";
 
-export type ListTasksParams = {
-  search?: string;
-  status?: string;
-  priority?: string;
-  organisationId?: number;
-  engagementId?: number;
-};
+export interface LoginResponse {
+  token: string;
+  user: User;
+}

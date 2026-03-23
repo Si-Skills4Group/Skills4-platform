@@ -1,14 +1,18 @@
 openapi: 3.1.0
 info:
-  title: Api
-  version: 0.1.0
-  description: Employer Engagement CRM API
+  title: Skills4CRM API
+  version: 0.2.0
+  description: Employer Engagement CRM API — Skills4CRM
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication operations
+  - name: users
+    description: User operations
   - name: organisations
     description: Organisation (Account in D365) operations
   - name: contacts
@@ -34,6 +38,103 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
 
+  # --- Auth ---
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "401":
+          description: Invalid credentials
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current authenticated user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthenticated
+
+  # --- Users ---
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List all users
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+
+  /users/{id}:
+    get:
+      operationId: getUser
+      tags: [users]
+      summary: Get user by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: User
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          description: Not found
+    put:
+      operationId: updateUser
+      tags: [users]
+      summary: Update user (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
   # --- Organisations ---
   /organisations:
     get:
@@ -45,7 +146,15 @@ paths:
           in: query
           schema:
             type: string
-        - name: industry
+        - name: type
+          in: query
+          schema:
+            type: string
+        - name: sector
+          in: query
+          schema:
+            type: string
+        - name: region
           in: query
           schema:
             type: string
@@ -251,6 +360,10 @@ paths:
           in: query
           schema:
             type: string
+        - name: status
+          in: query
+          schema:
+            type: string
         - name: organisationId
           in: query
           schema:
@@ -351,6 +464,10 @@ paths:
           schema:
             type: string
         - name: status
+          in: query
+          schema:
+            type: string
+        - name: priority
           in: query
           schema:
             type: string
@@ -469,7 +586,70 @@ components:
           type: string
       required: [status]
 
+    # --- Auth ---
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      required: [email, password]
+
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+      required: [token, user]
+
+    # --- User ---
+    UserRole:
+      type: string
+      enum: [admin, crm_manager, engagement_user, read_only]
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        fullName:
+          type: string
+        email:
+          type: string
+        role:
+          $ref: "#/components/schemas/UserRole"
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, fullName, email, role, isActive, createdAt, updatedAt]
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        fullName:
+          type: string
+        email:
+          type: string
+        role:
+          $ref: "#/components/schemas/UserRole"
+        isActive:
+          type: boolean
+
     # --- Organisation ---
+    OrganisationType:
+      type: string
+      enum: [employer, training_provider, partner]
+
+    OrganisationStatus:
+      type: string
+      enum: [prospect, active, dormant, closed]
+
     Organisation:
       type: object
       properties:
@@ -477,39 +657,28 @@ components:
           type: integer
         name:
           type: string
-        industry:
+        type:
+          $ref: "#/components/schemas/OrganisationType"
+        sector:
           type: string
+        region:
+          type: string
+          nullable: true
+        status:
+          $ref: "#/components/schemas/OrganisationStatus"
+        ownerUserId:
+          type: integer
+          nullable: true
+        ownerName:
+          type: string
+          nullable: true
         website:
           type: string
           nullable: true
         phone:
           type: string
           nullable: true
-        email:
-          type: string
-          nullable: true
-        address:
-          type: string
-          nullable: true
-        city:
-          type: string
-          nullable: true
-        country:
-          type: string
-          nullable: true
-        status:
-          type: string
-          enum: [active, inactive, prospect]
-        employeeCount:
-          type: integer
-          nullable: true
         notes:
-          type: string
-          nullable: true
-        ownerId:
-          type: string
-          nullable: true
-        ownerName:
           type: string
           nullable: true
         contactCount:
@@ -520,92 +689,68 @@ components:
           type: string
         updatedAt:
           type: string
-      required: [id, name, industry, status, contactCount, engagementCount, createdAt, updatedAt]
+      required: [id, name, type, sector, status, contactCount, engagementCount, createdAt, updatedAt]
 
     CreateOrganisationRequest:
       type: object
       properties:
         name:
           type: string
-        industry:
+        type:
+          $ref: "#/components/schemas/OrganisationType"
+        sector:
           type: string
+        region:
+          type: string
+          nullable: true
+        status:
+          $ref: "#/components/schemas/OrganisationStatus"
+        ownerUserId:
+          type: integer
+          nullable: true
         website:
           type: string
           nullable: true
         phone:
           type: string
           nullable: true
-        email:
-          type: string
-          nullable: true
-        address:
-          type: string
-          nullable: true
-        city:
-          type: string
-          nullable: true
-        country:
-          type: string
-          nullable: true
-        status:
-          type: string
-          enum: [active, inactive, prospect]
-        employeeCount:
-          type: integer
-          nullable: true
         notes:
           type: string
           nullable: true
-        ownerId:
-          type: string
-          nullable: true
-        ownerName:
-          type: string
-          nullable: true
-      required: [name, industry, status]
+      required: [name, type, sector, status]
 
     UpdateOrganisationRequest:
       type: object
       properties:
         name:
           type: string
-        industry:
+        type:
+          $ref: "#/components/schemas/OrganisationType"
+        sector:
           type: string
+        region:
+          type: string
+          nullable: true
+        status:
+          $ref: "#/components/schemas/OrganisationStatus"
+        ownerUserId:
+          type: integer
+          nullable: true
         website:
           type: string
           nullable: true
         phone:
           type: string
           nullable: true
-        email:
-          type: string
-          nullable: true
-        address:
-          type: string
-          nullable: true
-        city:
-          type: string
-          nullable: true
-        country:
-          type: string
-          nullable: true
-        status:
-          type: string
-          enum: [active, inactive, prospect]
-        employeeCount:
-          type: integer
-          nullable: true
         notes:
-          type: string
-          nullable: true
-        ownerId:
-          type: string
-          nullable: true
-        ownerName:
           type: string
           nullable: true
 
     # --- Contact ---
+    PreferredContactMethod:
+      type: string
+      enum: [email, phone, post, no_preference]
+
     Contact:
       type: object
       properties:
@@ -615,41 +760,31 @@ components:
           type: string
         lastName:
           type: string
+        jobTitle:
+          type: string
+          nullable: true
         email:
           type: string
           nullable: true
         phone:
           type: string
           nullable: true
-        jobTitle:
-          type: string
-          nullable: true
-        department:
-          type: string
-          nullable: true
+        preferredContactMethod:
+          $ref: "#/components/schemas/PreferredContactMethod"
         organisationId:
           type: integer
           nullable: true
         organisationName:
           type: string
           nullable: true
-        status:
-          type: string
-          enum: [active, inactive]
         notes:
-          type: string
-          nullable: true
-        ownerId:
-          type: string
-          nullable: true
-        ownerName:
           type: string
           nullable: true
         createdAt:
           type: string
         updatedAt:
           type: string
-      required: [id, firstName, lastName, status, createdAt, updatedAt]
+      required: [id, firstName, lastName, createdAt, updatedAt]
 
     CreateContactRequest:
       type: object
@@ -658,34 +793,24 @@ components:
           type: string
         lastName:
           type: string
+        jobTitle:
+          type: string
+          nullable: true
         email:
           type: string
           nullable: true
         phone:
           type: string
           nullable: true
-        jobTitle:
-          type: string
-          nullable: true
-        department:
-          type: string
-          nullable: true
+        preferredContactMethod:
+          $ref: "#/components/schemas/PreferredContactMethod"
         organisationId:
           type: integer
           nullable: true
-        status:
-          type: string
-          enum: [active, inactive]
         notes:
           type: string
           nullable: true
-        ownerId:
-          type: string
-          nullable: true
-        ownerName:
-          type: string
-          nullable: true
-      required: [firstName, lastName, status]
+      required: [firstName, lastName]
 
     UpdateContactRequest:
       type: object
@@ -694,35 +819,33 @@ components:
           type: string
         lastName:
           type: string
+        jobTitle:
+          type: string
+          nullable: true
         email:
           type: string
           nullable: true
         phone:
           type: string
           nullable: true
-        jobTitle:
-          type: string
-          nullable: true
-        department:
-          type: string
-          nullable: true
+        preferredContactMethod:
+          $ref: "#/components/schemas/PreferredContactMethod"
         organisationId:
           type: integer
           nullable: true
-        status:
-          type: string
-          enum: [active, inactive]
         notes:
-          type: string
-          nullable: true
-        ownerId:
-          type: string
-          nullable: true
-        ownerName:
           type: string
           nullable: true
 
     # --- Engagement ---
+    EngagementStage:
+      type: string
+      enum: [lead, contacted, meeting_booked, proposal, active, won, dormant]
+
+    EngagementStatus:
+      type: string
+      enum: [open, closed_won, closed_lost, on_hold]
+
     Engagement:
       type: object
       properties:
@@ -736,47 +859,48 @@ components:
         organisationName:
           type: string
           nullable: true
-        contactId:
+        primaryContactId:
           type: integer
           nullable: true
         contactName:
           type: string
           nullable: true
+        ownerUserId:
+          type: integer
+          nullable: true
+        ownerName:
+          type: string
+          nullable: true
         stage:
-          type: string
-          enum: [prospect, initial_contact, meeting_scheduled, proposal_sent, negotiation, closed_won, closed_lost]
-        type:
-          type: string
-          enum: [apprenticeship, work_placement, sponsorship, mentoring, careers_fair, guest_lecture, other]
-        value:
+          $ref: "#/components/schemas/EngagementStage"
+        status:
+          $ref: "#/components/schemas/EngagementStatus"
+        expectedLearnerVolume:
+          type: integer
+          nullable: true
+        expectedValue:
           type: number
           nullable: true
         probability:
           type: integer
           nullable: true
-        expectedCloseDate:
+        lastContactDate:
           type: string
           nullable: true
-        actualCloseDate:
+        nextActionDate:
           type: string
           nullable: true
-        description:
+        nextActionNote:
           type: string
           nullable: true
         notes:
-          type: string
-          nullable: true
-        ownerId:
-          type: string
-          nullable: true
-        ownerName:
           type: string
           nullable: true
         createdAt:
           type: string
         updatedAt:
           type: string
-      required: [id, title, stage, type, createdAt, updatedAt]
+      required: [id, title, stage, status, createdAt, updatedAt]
 
     CreateEngagementRequest:
       type: object
@@ -786,37 +910,38 @@ components:
         organisationId:
           type: integer
           nullable: true
-        contactId:
+        primaryContactId:
+          type: integer
+          nullable: true
+        ownerUserId:
           type: integer
           nullable: true
         stage:
-          type: string
-          enum: [prospect, initial_contact, meeting_scheduled, proposal_sent, negotiation, closed_won, closed_lost]
-        type:
-          type: string
-          enum: [apprenticeship, work_placement, sponsorship, mentoring, careers_fair, guest_lecture, other]
-        value:
+          $ref: "#/components/schemas/EngagementStage"
+        status:
+          $ref: "#/components/schemas/EngagementStatus"
+        expectedLearnerVolume:
+          type: integer
+          nullable: true
+        expectedValue:
           type: number
           nullable: true
         probability:
           type: integer
           nullable: true
-        expectedCloseDate:
+        lastContactDate:
           type: string
           nullable: true
-        description:
+        nextActionDate:
+          type: string
+          nullable: true
+        nextActionNote:
           type: string
           nullable: true
         notes:
           type: string
           nullable: true
-        ownerId:
-          type: string
-          nullable: true
-        ownerName:
-          type: string
-          nullable: true
-      required: [title, stage, type]
+      required: [title, stage, status]
 
     UpdateEngagementRequest:
       type: object
@@ -826,41 +951,47 @@ components:
         organisationId:
           type: integer
           nullable: true
-        contactId:
+        primaryContactId:
+          type: integer
+          nullable: true
+        ownerUserId:
           type: integer
           nullable: true
         stage:
-          type: string
-          enum: [prospect, initial_contact, meeting_scheduled, proposal_sent, negotiation, closed_won, closed_lost]
-        type:
-          type: string
-          enum: [apprenticeship, work_placement, sponsorship, mentoring, careers_fair, guest_lecture, other]
-        value:
+          $ref: "#/components/schemas/EngagementStage"
+        status:
+          $ref: "#/components/schemas/EngagementStatus"
+        expectedLearnerVolume:
+          type: integer
+          nullable: true
+        expectedValue:
           type: number
           nullable: true
         probability:
           type: integer
           nullable: true
-        expectedCloseDate:
+        lastContactDate:
           type: string
           nullable: true
-        actualCloseDate:
+        nextActionDate:
           type: string
           nullable: true
-        description:
+        nextActionNote:
           type: string
           nullable: true
         notes:
           type: string
           nullable: true
-        ownerId:
-          type: string
-          nullable: true
-        ownerName:
-          type: string
-          nullable: true
 
     # --- Task ---
+    TaskStatus:
+      type: string
+      enum: [open, in_progress, completed, overdue]
+
+    TaskPriority:
+      type: string
+      enum: [low, medium, high]
+
     Task:
       type: object
       properties:
@@ -871,19 +1002,11 @@ components:
         description:
           type: string
           nullable: true
-        type:
-          type: string
-          enum: [call, email, meeting, follow_up, proposal, other]
         status:
-          type: string
-          enum: [open, in_progress, completed, cancelled]
+          $ref: "#/components/schemas/TaskStatus"
         priority:
-          type: string
-          enum: [low, medium, high, urgent]
+          $ref: "#/components/schemas/TaskPriority"
         dueDate:
-          type: string
-          nullable: true
-        completedDate:
           type: string
           nullable: true
         organisationId:
@@ -898,26 +1021,17 @@ components:
         engagementTitle:
           type: string
           nullable: true
-        contactId:
+        assignedUserId:
           type: integer
           nullable: true
-        contactName:
-          type: string
-          nullable: true
-        ownerId:
-          type: string
-          nullable: true
-        ownerName:
-          type: string
-          nullable: true
-        notes:
+        assignedUserName:
           type: string
           nullable: true
         createdAt:
           type: string
         updatedAt:
           type: string
-      required: [id, title, type, status, priority, createdAt, updatedAt]
+      required: [id, title, status, priority, createdAt, updatedAt]
 
     CreateTaskRequest:
       type: object
@@ -927,15 +1041,10 @@ components:
         description:
           type: string
           nullable: true
-        type:
-          type: string
-          enum: [call, email, meeting, follow_up, proposal, other]
         status:
-          type: string
-          enum: [open, in_progress, completed, cancelled]
+          $ref: "#/components/schemas/TaskStatus"
         priority:
-          type: string
-          enum: [low, medium, high, urgent]
+          $ref: "#/components/schemas/TaskPriority"
         dueDate:
           type: string
           nullable: true
@@ -945,19 +1054,10 @@ components:
         engagementId:
           type: integer
           nullable: true
-        contactId:
+        assignedUserId:
           type: integer
           nullable: true
-        ownerId:
-          type: string
-          nullable: true
-        ownerName:
-          type: string
-          nullable: true
-        notes:
-          type: string
-          nullable: true
-      required: [title, type, status, priority]
+      required: [title, status, priority]
 
     UpdateTaskRequest:
       type: object
@@ -967,19 +1067,11 @@ components:
         description:
           type: string
           nullable: true
-        type:
-          type: string
-          enum: [call, email, meeting, follow_up, proposal, other]
         status:
-          type: string
-          enum: [open, in_progress, completed, cancelled]
+          $ref: "#/components/schemas/TaskStatus"
         priority:
-          type: string
-          enum: [low, medium, high, urgent]
+          $ref: "#/components/schemas/TaskPriority"
         dueDate:
-          type: string
-          nullable: true
-        completedDate:
           type: string
           nullable: true
         organisationId:
@@ -988,17 +1080,8 @@ components:
         engagementId:
           type: integer
           nullable: true
-        contactId:
+        assignedUserId:
           type: integer
-          nullable: true
-        ownerId:
-          type: string
-          nullable: true
-        ownerName:
-          type: string
-          nullable: true
-        notes:
-          type: string
           nullable: true
 
     # --- Dashboard ---
@@ -1018,7 +1101,13 @@ components:
         engagementsByStage:
           type: array
           items:
-            $ref: "#/components/schemas/StageCount"
+            type: object
+            properties:
+              stage:
+                type: string
+              count:
+                type: integer
+            required: [stage, count]
         recentEngagements:
           type: array
           items:
@@ -1028,12 +1117,3 @@ components:
           items:
             $ref: "#/components/schemas/Task"
       required: [totalOrganisations, totalContacts, totalEngagements, openTasks, overdueTasks, engagementsByStage, recentEngagements, upcomingTasks]
-
-    StageCount:
-      type: object
-      properties:
-        stage:
-          type: string
-        count:
-          type: integer
-      required: [stage, count]
