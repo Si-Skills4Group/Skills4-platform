@@ -54,7 +54,7 @@ The CRM has 5 core modules, all mapped to future Dynamics 365 entities:
 ## CRM Frontend Pages
 
 - `/` — Dashboard (summary stats, engagement pipeline chart, upcoming tasks)
-- `/organisations` — Organisation list with search/filter; detail view with contacts tab
+- `/organisations` — Organisation list with search + filters (type/sector/region/status); Create/Edit forms; Detail view with linked engagements, contacts, tasks, notes; Quick-create modals for contact/engagement/task
 - `/contacts` — Contact list with search; linked to organisations
 - `/engagements` — Engagement pipeline (kanban + table view), stages from prospect → closed
 - `/tasks` — Task list with priority/status filters, overdue highlighting

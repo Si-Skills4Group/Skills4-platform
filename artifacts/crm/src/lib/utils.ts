@@ -7,11 +7,20 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatCurrency(value: number | null | undefined): string {
   if (value == null) return "—";
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("en-GB", {
     style: "currency",
-    currency: "USD",
+    currency: "GBP",
     maximumFractionDigits: 0,
   }).format(value);
+}
+
+export function formatDate(value: string | null | undefined): string {
+  if (!value) return "—";
+  return new Date(value).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 export function formatInitials(name: string): string {
@@ -22,4 +31,9 @@ export function formatInitials(name: string): string {
     .join("")
     .toUpperCase()
     .substring(0, 2);
+}
+
+export function isOverdue(dueDate: string | null | undefined): boolean {
+  if (!dueDate) return false;
+  return new Date(dueDate) < new Date();
 }
