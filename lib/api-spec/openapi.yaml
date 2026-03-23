@@ -1,22 +1,31 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Employer Engagement CRM API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: organisations
+    description: Organisation (Account in D365) operations
+  - name: contacts
+    description: Contact operations
+  - name: engagements
+    description: Engagement (Opportunity) operations
+  - name: tasks
+    description: Task / Activity operations
+  - name: dashboard
+    description: Dashboard summary operations
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +33,433 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # --- Organisations ---
+  /organisations:
+    get:
+      operationId: listOrganisations
+      tags: [organisations]
+      summary: List all organisations
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: industry
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of organisations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Organisation"
+    post:
+      operationId: createOrganisation
+      tags: [organisations]
+      summary: Create organisation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrganisationRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Organisation"
+
+  /organisations/{id}:
+    get:
+      operationId: getOrganisation
+      tags: [organisations]
+      summary: Get organisation by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Organisation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Organisation"
+        "404":
+          description: Not found
+    put:
+      operationId: updateOrganisation
+      tags: [organisations]
+      summary: Update organisation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOrganisationRequest"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Organisation"
+    delete:
+      operationId: deleteOrganisation
+      tags: [organisations]
+      summary: Delete organisation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # --- Contacts ---
+  /contacts:
+    get:
+      operationId: listContacts
+      tags: [contacts]
+      summary: List all contacts
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: organisationId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of contacts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Contact"
+    post:
+      operationId: createContact
+      tags: [contacts]
+      summary: Create contact
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateContactRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contact"
+
+  /contacts/{id}:
+    get:
+      operationId: getContact
+      tags: [contacts]
+      summary: Get contact by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Contact
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contact"
+        "404":
+          description: Not found
+    put:
+      operationId: updateContact
+      tags: [contacts]
+      summary: Update contact
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateContactRequest"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contact"
+    delete:
+      operationId: deleteContact
+      tags: [contacts]
+      summary: Delete contact
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # --- Engagements ---
+  /engagements:
+    get:
+      operationId: listEngagements
+      tags: [engagements]
+      summary: List all engagements
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: stage
+          in: query
+          schema:
+            type: string
+        - name: organisationId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of engagements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Engagement"
+    post:
+      operationId: createEngagement
+      tags: [engagements]
+      summary: Create engagement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEngagementRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Engagement"
+
+  /engagements/{id}:
+    get:
+      operationId: getEngagement
+      tags: [engagements]
+      summary: Get engagement by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Engagement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Engagement"
+        "404":
+          description: Not found
+    put:
+      operationId: updateEngagement
+      tags: [engagements]
+      summary: Update engagement
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateEngagementRequest"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Engagement"
+    delete:
+      operationId: deleteEngagement
+      tags: [engagements]
+      summary: Delete engagement
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # --- Tasks ---
+  /tasks:
+    get:
+      operationId: listTasks
+      tags: [tasks]
+      summary: List all tasks
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: organisationId
+          in: query
+          schema:
+            type: integer
+        - name: engagementId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
+    post:
+      operationId: createTask
+      tags: [tasks]
+      summary: Create task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTaskRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+
+  /tasks/{id}:
+    get:
+      operationId: getTask
+      tags: [tasks]
+      summary: Get task by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "404":
+          description: Not found
+    put:
+      operationId: updateTask
+      tags: [tasks]
+      summary: Update task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTaskRequest"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+    delete:
+      operationId: deleteTask
+      tags: [tasks]
+      summary: Delete task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # --- Dashboard ---
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get dashboard summary stats
+      responses:
+        "200":
+          description: Summary stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +467,573 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    # --- Organisation ---
+    Organisation:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        industry:
+          type: string
+        website:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        country:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [active, inactive, prospect]
+        employeeCount:
+          type: integer
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        ownerId:
+          type: string
+          nullable: true
+        ownerName:
+          type: string
+          nullable: true
+        contactCount:
+          type: integer
+        engagementCount:
+          type: integer
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, name, industry, status, contactCount, engagementCount, createdAt, updatedAt]
+
+    CreateOrganisationRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        industry:
+          type: string
+        website:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        country:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [active, inactive, prospect]
+        employeeCount:
+          type: integer
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        ownerId:
+          type: string
+          nullable: true
+        ownerName:
+          type: string
+          nullable: true
+      required: [name, industry, status]
+
+    UpdateOrganisationRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        industry:
+          type: string
+        website:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        country:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [active, inactive, prospect]
+        employeeCount:
+          type: integer
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        ownerId:
+          type: string
+          nullable: true
+        ownerName:
+          type: string
+          nullable: true
+
+    # --- Contact ---
+    Contact:
+      type: object
+      properties:
+        id:
+          type: integer
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        jobTitle:
+          type: string
+          nullable: true
+        department:
+          type: string
+          nullable: true
+        organisationId:
+          type: integer
+          nullable: true
+        organisationName:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [active, inactive]
+        notes:
+          type: string
+          nullable: true
+        ownerId:
+          type: string
+          nullable: true
+        ownerName:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, firstName, lastName, status, createdAt, updatedAt]
+
+    CreateContactRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        jobTitle:
+          type: string
+          nullable: true
+        department:
+          type: string
+          nullable: true
+        organisationId:
+          type: integer
+          nullable: true
+        status:
+          type: string
+          enum: [active, inactive]
+        notes:
+          type: string
+          nullable: true
+        ownerId:
+          type: string
+          nullable: true
+        ownerName:
+          type: string
+          nullable: true
+      required: [firstName, lastName, status]
+
+    UpdateContactRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        jobTitle:
+          type: string
+          nullable: true
+        department:
+          type: string
+          nullable: true
+        organisationId:
+          type: integer
+          nullable: true
+        status:
+          type: string
+          enum: [active, inactive]
+        notes:
+          type: string
+          nullable: true
+        ownerId:
+          type: string
+          nullable: true
+        ownerName:
+          type: string
+          nullable: true
+
+    # --- Engagement ---
+    Engagement:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        organisationId:
+          type: integer
+          nullable: true
+        organisationName:
+          type: string
+          nullable: true
+        contactId:
+          type: integer
+          nullable: true
+        contactName:
+          type: string
+          nullable: true
+        stage:
+          type: string
+          enum: [prospect, initial_contact, meeting_scheduled, proposal_sent, negotiation, closed_won, closed_lost]
+        type:
+          type: string
+          enum: [apprenticeship, work_placement, sponsorship, mentoring, careers_fair, guest_lecture, other]
+        value:
+          type: number
+          nullable: true
+        probability:
+          type: integer
+          nullable: true
+        expectedCloseDate:
+          type: string
+          nullable: true
+        actualCloseDate:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        ownerId:
+          type: string
+          nullable: true
+        ownerName:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, title, stage, type, createdAt, updatedAt]
+
+    CreateEngagementRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        organisationId:
+          type: integer
+          nullable: true
+        contactId:
+          type: integer
+          nullable: true
+        stage:
+          type: string
+          enum: [prospect, initial_contact, meeting_scheduled, proposal_sent, negotiation, closed_won, closed_lost]
+        type:
+          type: string
+          enum: [apprenticeship, work_placement, sponsorship, mentoring, careers_fair, guest_lecture, other]
+        value:
+          type: number
+          nullable: true
+        probability:
+          type: integer
+          nullable: true
+        expectedCloseDate:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        ownerId:
+          type: string
+          nullable: true
+        ownerName:
+          type: string
+          nullable: true
+      required: [title, stage, type]
+
+    UpdateEngagementRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        organisationId:
+          type: integer
+          nullable: true
+        contactId:
+          type: integer
+          nullable: true
+        stage:
+          type: string
+          enum: [prospect, initial_contact, meeting_scheduled, proposal_sent, negotiation, closed_won, closed_lost]
+        type:
+          type: string
+          enum: [apprenticeship, work_placement, sponsorship, mentoring, careers_fair, guest_lecture, other]
+        value:
+          type: number
+          nullable: true
+        probability:
+          type: integer
+          nullable: true
+        expectedCloseDate:
+          type: string
+          nullable: true
+        actualCloseDate:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        ownerId:
+          type: string
+          nullable: true
+        ownerName:
+          type: string
+          nullable: true
+
+    # --- Task ---
+    Task:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [call, email, meeting, follow_up, proposal, other]
+        status:
+          type: string
+          enum: [open, in_progress, completed, cancelled]
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        dueDate:
+          type: string
+          nullable: true
+        completedDate:
+          type: string
+          nullable: true
+        organisationId:
+          type: integer
+          nullable: true
+        organisationName:
+          type: string
+          nullable: true
+        engagementId:
+          type: integer
+          nullable: true
+        engagementTitle:
+          type: string
+          nullable: true
+        contactId:
+          type: integer
+          nullable: true
+        contactName:
+          type: string
+          nullable: true
+        ownerId:
+          type: string
+          nullable: true
+        ownerName:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required: [id, title, type, status, priority, createdAt, updatedAt]
+
+    CreateTaskRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [call, email, meeting, follow_up, proposal, other]
+        status:
+          type: string
+          enum: [open, in_progress, completed, cancelled]
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        dueDate:
+          type: string
+          nullable: true
+        organisationId:
+          type: integer
+          nullable: true
+        engagementId:
+          type: integer
+          nullable: true
+        contactId:
+          type: integer
+          nullable: true
+        ownerId:
+          type: string
+          nullable: true
+        ownerName:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+      required: [title, type, status, priority]
+
+    UpdateTaskRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [call, email, meeting, follow_up, proposal, other]
+        status:
+          type: string
+          enum: [open, in_progress, completed, cancelled]
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        dueDate:
+          type: string
+          nullable: true
+        completedDate:
+          type: string
+          nullable: true
+        organisationId:
+          type: integer
+          nullable: true
+        engagementId:
+          type: integer
+          nullable: true
+        contactId:
+          type: integer
+          nullable: true
+        ownerId:
+          type: string
+          nullable: true
+        ownerName:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+
+    # --- Dashboard ---
+    DashboardSummary:
+      type: object
+      properties:
+        totalOrganisations:
+          type: integer
+        totalContacts:
+          type: integer
+        totalEngagements:
+          type: integer
+        openTasks:
+          type: integer
+        overdueTasks:
+          type: integer
+        engagementsByStage:
+          type: array
+          items:
+            $ref: "#/components/schemas/StageCount"
+        recentEngagements:
+          type: array
+          items:
+            $ref: "#/components/schemas/Engagement"
+        upcomingTasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/Task"
+      required: [totalOrganisations, totalContacts, totalEngagements, openTasks, overdueTasks, engagementsByStage, recentEngagements, upcomingTasks]
+
+    StageCount:
+      type: object
+      properties:
+        stage:
+          type: string
+        count:
+          type: integer
+      required: [stage, count]
