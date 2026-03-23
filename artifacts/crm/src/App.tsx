@@ -7,6 +7,7 @@ import Dashboard from "@/pages/Dashboard";
 import Organisations from "@/pages/Organisations";
 import OrganisationDetail from "@/pages/OrganisationDetail";
 import Contacts from "@/pages/Contacts";
+import ContactDetail from "@/pages/ContactDetail";
 import Engagements from "@/pages/Engagements";
 import Tasks from "@/pages/Tasks";
 import Settings from "@/pages/Settings";
@@ -35,6 +36,7 @@ function Router() {
               <Route path="/organisations" component={Organisations} />
               <Route path="/organisations/:id" component={OrganisationDetail} />
               <Route path="/contacts" component={Contacts} />
+              <Route path="/contacts/:id" component={ContactDetail} />
               <Route path="/engagements" component={Engagements} />
               <Route path="/tasks" component={Tasks} />
               <Route path="/settings" component={Settings} />

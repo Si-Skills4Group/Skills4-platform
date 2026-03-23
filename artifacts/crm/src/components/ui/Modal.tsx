@@ -26,7 +26,7 @@ export function Modal({ open, onClose, title, description, children, size = "md"
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className={cn("relative z-10 bg-white rounded-2xl shadow-2xl w-full overflow-hidden flex flex-col max-h-[90vh]", maxW)}>
+      <div role="dialog" aria-modal="true" aria-labelledby="modal-title" className={cn("relative z-10 bg-white rounded-2xl shadow-2xl w-full overflow-hidden flex flex-col max-h-[90vh]", maxW)}>
         <div className="flex items-start justify-between p-6 border-b flex-shrink-0">
           <div>
             <h2 className="font-display font-bold text-lg text-foreground">{title}</h2>
