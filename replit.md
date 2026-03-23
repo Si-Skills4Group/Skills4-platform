@@ -73,6 +73,48 @@ All routes under `/api/`:
 - `GET/PUT/DELETE /tasks/:id` — detail / update / delete
 - `GET /dashboard/summary` — aggregated stats for dashboard
 
+## Authentication & RBAC
+
+### Strategy: Local JWT (MVP) — Entra ID ready
+- **Backend:** `bcryptjs` (password hashing) + `jsonwebtoken` (7-day tokens)
+- **Frontend:** Token stored in `localStorage`; `setAuthTokenGetter` wires it into all API calls
+- **Middleware chain:** `authenticate.ts` (JWT verify) → `requireMinRole.ts` (RBAC guard)
+
+### Role Hierarchy
+| Role | Level | Permissions |
+|---|---|---|
+| `admin` | 4 | Full CRUD + user management |
+| `crm_manager` | 3 | Full CRUD on all entities |
+| `engagement_user` | 2 | Create + edit; **no delete** |
+| `read_only` | 1 | View only |
+
+Route-level guards: POST/PUT → `requireMinRole("engagement_user")`, DELETE → `requireMinRole("crm_manager")`
+
+### Entra ID / Microsoft SSO Migration Path
+1. Install `passport-azure-ad` (`BearerStrategy`)
+2. Replace `signToken`/`verifyToken` in `lib/auth.ts` with passport strategy
+3. `authenticate.ts` middleware interface stays unchanged — no route changes needed
+4. Remove `password_hash` from `users` table; map OID → user record on first login
+5. Role field maps to D365 Security Roles
+
+### Auth Files
+- `artifacts/api-server/src/lib/auth.ts` — JWT helpers + migration comments
+- `artifacts/api-server/src/middlewares/authenticate.ts` — JWT verification
+- `artifacts/api-server/src/middlewares/requireRole.ts` — RBAC guards
+- `artifacts/api-server/src/routes/auth.ts` — POST /auth/login, GET /auth/me
+- `artifacts/crm/src/contexts/AuthContext.tsx` — React auth state
+- `artifacts/crm/src/hooks/usePermissions.ts` — UI permission helpers
+- `artifacts/crm/src/components/auth/ProtectedRoute.tsx` — route guard
+- `artifacts/crm/src/pages/Login.tsx` — login page with demo account picker
+
+### Demo Accounts
+| Email | Password | Role |
+|---|---|---|
+| admin@company.com | Admin123! | Admin |
+| manager@company.com | Manager123! | CRM Manager |
+| user@company.com | User123! | Engagement User |
+| readonly@company.com | ReadOnly123! | Read Only |
+
 ## Database Schema
 
 Located in `lib/db/src/schema/`. Each file contains D365 field-mapping comments at the top.

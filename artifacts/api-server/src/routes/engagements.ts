@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { engagementsTable, organisationsTable, contactsTable, usersTable } from "@workspace/db/schema";
 import { eq, ilike, and, or } from "drizzle-orm";
+import { requireMinRole } from "../middlewares/requireRole";
 
 const router: IRouter = Router();
 
@@ -93,7 +94,7 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-router.post("/", async (req, res) => {
+router.post("/", requireMinRole("engagement_user"), async (req, res) => {
   try {
     const body = { ...req.body };
     if (body.expectedValue != null) body.expectedValue = String(body.expectedValue);
@@ -119,7 +120,7 @@ router.post("/", async (req, res) => {
   }
 });
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", requireMinRole("engagement_user"), async (req, res) => {
   try {
     const body = { ...req.body };
     if (body.expectedValue != null) body.expectedValue = String(body.expectedValue);
@@ -146,7 +147,7 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requireMinRole("crm_manager"), async (req, res) => {
   try {
     await db.delete(engagementsTable).where(eq(engagementsTable.id, Number(req.params.id)));
     res.status(204).send();

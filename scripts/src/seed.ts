@@ -2,9 +2,13 @@
  * Seed script — populates the Employer Engagement CRM with example data.
  * Run: pnpm --filter @workspace/scripts run seed
  *
- * D365 migration note: Each entity here maps to a D365 object.
- * See schema files in lib/db/src/schema/ for field-level mapping comments.
+ * Demo login accounts created:
+ *   admin@company.com    / Admin123!     (admin)
+ *   manager@company.com  / Manager123!   (crm_manager)
+ *   user@company.com     / User123!      (engagement_user)
+ *   readonly@company.com / ReadOnly123!  (read_only)
  */
+import bcrypt from "bcryptjs";
 import { db } from "@workspace/db";
 import {
   usersTable,
@@ -13,9 +17,17 @@ import {
   engagementsTable,
   tasksTable,
 } from "@workspace/db/schema";
+import { sql } from "drizzle-orm";
+
+async function hash(plain: string) {
+  return bcrypt.hash(plain, 10);
+}
 
 async function seed() {
   console.log("Seeding CRM database...\n");
+
+  await db.execute(sql`TRUNCATE tasks, engagements, contacts, organisations, users RESTART IDENTITY CASCADE`);
+  console.log("✓ Tables cleared");
 
   // ─── Users (D365: SystemUser) ─────────────────────────────────────────────
   const users = await db
@@ -23,27 +35,31 @@ async function seed() {
     .values([
       {
         fullName: "Sarah Mitchell",
-        email: "sarah.mitchell@engage.example.com",
+        email: "admin@company.com",
         role: "admin",
         isActive: true,
+        passwordHash: await hash("Admin123!"),
       },
       {
         fullName: "James Okafor",
-        email: "james.okafor@engage.example.com",
-        role: "user",
+        email: "manager@company.com",
+        role: "crm_manager",
         isActive: true,
+        passwordHash: await hash("Manager123!"),
       },
       {
         fullName: "Priya Sharma",
-        email: "priya.sharma@engage.example.com",
-        role: "user",
+        email: "user@company.com",
+        role: "engagement_user",
         isActive: true,
+        passwordHash: await hash("User123!"),
       },
       {
         fullName: "Thomas Reid",
-        email: "thomas.reid@engage.example.com",
-        role: "user",
-        isActive: false,
+        email: "readonly@company.com",
+        role: "read_only",
+        isActive: true,
+        passwordHash: await hash("ReadOnly123!"),
       },
     ])
     .returning();
@@ -128,7 +144,7 @@ async function seed() {
     ])
     .returning();
 
-  const [techcorp, midlandsMfg, greenEnergy, retailHorizons, healthFirst, mta, startupCollective] = orgs;
+  const [techcorp, midlandsMfg, greenEnergy, retailHorizons, healthFirst, mta] = orgs;
   console.log(`✓ ${orgs.length} organisations`);
 
   // ─── Contacts (D365: Contact) ─────────────────────────────────────────────
@@ -210,11 +226,10 @@ async function seed() {
   console.log(`✓ ${contacts.length} contacts`);
 
   // ─── Engagements (D365: Opportunity) ─────────────────────────────────────
-  const today = new Date();
-  const addDays = (d: Date, n: number) => {
-    const date = new Date(d);
-    date.setDate(date.getDate() + n);
-    return date.toISOString().split("T")[0];
+  const addDays = (n: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + n);
+    return d.toISOString().split("T")[0];
   };
 
   const engagements = await db
@@ -230,8 +245,8 @@ async function seed() {
         expectedLearnerVolume: 10,
         expectedValue: "25000",
         probability: 80,
-        lastContactDate: addDays(today, -3),
-        nextActionDate: addDays(today, 5),
+        lastContactDate: addDays(-3),
+        nextActionDate: addDays(5),
         nextActionNote: "Angela to confirm headcount with finance before signing off.",
         notes: "Annual apprenticeship programme for 10 digital apprentices (L4 Data Analyst).",
       },
@@ -245,8 +260,8 @@ async function seed() {
         expectedLearnerVolume: 6,
         expectedValue: "12000",
         probability: 60,
-        lastContactDate: addDays(today, -7),
-        nextActionDate: addDays(today, 2),
+        lastContactDate: addDays(-7),
+        nextActionDate: addDays(2),
         nextActionNote: "Teams call booked with Diane to walk through placement framework and T-Level requirements.",
         notes: "8-week placements for T-Level Engineering students. Linked to our T-Level provider contract.",
       },
@@ -260,10 +275,10 @@ async function seed() {
         expectedLearnerVolume: 0,
         expectedValue: "5000",
         probability: 25,
-        lastContactDate: addDays(today, -14),
-        nextActionDate: addDays(today, 7),
+        lastContactDate: addDays(-14),
+        nextActionDate: addDays(7),
         nextActionNote: "Follow-up call with Tom to explore wider apprenticeship options beyond the fair.",
-        notes: "Sponsorship opportunity for annual sustainability careers fair. Possible entry point to bigger apprenticeship deal.",
+        notes: "Sponsorship opportunity for annual sustainability careers fair.",
       },
       {
         organisationId: retailHorizons.id,
@@ -275,8 +290,8 @@ async function seed() {
         expectedLearnerVolume: 15,
         expectedValue: "8000",
         probability: 50,
-        lastContactDate: addDays(today, -2),
-        nextActionDate: addDays(today, 10),
+        lastContactDate: addDays(-2),
+        nextActionDate: addDays(10),
         nextActionNote: "Send over the mentoring scheme overview document ahead of the meeting.",
         notes: "Mentoring partnership for retail management cohort. Claire keen but needs board approval.",
       },
@@ -290,7 +305,7 @@ async function seed() {
         expectedLearnerVolume: 25,
         expectedValue: "40000",
         probability: 15,
-        nextActionDate: addDays(today, 21),
+        nextActionDate: addDays(21),
         nextActionNote: "Research NHS apprenticeship levy requirements and Ofsted healthcare frameworks before next contact.",
         notes: "High-value opportunity — 25 nursing and allied health apprentices. Long sales cycle expected.",
       },
@@ -304,7 +319,7 @@ async function seed() {
         expectedLearnerVolume: 120,
         expectedValue: "3000",
         probability: 100,
-        lastContactDate: addDays(today, -35),
+        lastContactDate: addDays(-35),
         notes: "Quarterly guest lecture series for computing students. Delivered 4 sessions. Closed successfully.",
       },
       {
@@ -317,8 +332,8 @@ async function seed() {
         expectedLearnerVolume: 40,
         expectedValue: "60000",
         probability: 90,
-        lastContactDate: addDays(today, -1),
-        nextActionDate: addDays(today, 14),
+        lastContactDate: addDays(-1),
+        nextActionDate: addDays(14),
         nextActionNote: "Final contract review with legal team. Leanne to countersign by end of month.",
         notes: "Strategic subcontracting arrangement for T-Level Engineering and Health delivery. High priority.",
       },
@@ -336,7 +351,7 @@ async function seed() {
       assignedUserId: sarah.id,
       title: "Send updated apprenticeship proposal to Angela",
       description: "Attach revised funding breakdown and delivery timeline. Include T&Cs.",
-      dueDate: addDays(today, 5),
+      dueDate: addDays(5),
       priority: "high",
       status: "open",
     },
@@ -346,7 +361,7 @@ async function seed() {
       assignedUserId: james.id,
       title: "Teams call — T-Level placement framework walkthrough",
       description: "Dial-in link sent. Ensure Diane has the placement handbook before the call.",
-      dueDate: addDays(today, 2),
+      dueDate: addDays(2),
       priority: "high",
       status: "open",
     },
@@ -356,7 +371,7 @@ async function seed() {
       assignedUserId: james.id,
       title: "Chase signed placement agreement — OVERDUE",
       description: "Agreement sent 3 weeks ago. Diane has not responded to two follow-up emails.",
-      dueDate: addDays(today, -4),
+      dueDate: addDays(-4),
       priority: "high",
       status: "overdue",
     },
@@ -366,7 +381,7 @@ async function seed() {
       assignedUserId: sarah.id,
       title: "Schedule follow-up call with Tom Ashby",
       description: "Explore whether Green Energy has levy funds available for apprenticeship cohort.",
-      dueDate: addDays(today, 7),
+      dueDate: addDays(7),
       priority: "medium",
       status: "open",
     },
@@ -376,7 +391,7 @@ async function seed() {
       assignedUserId: james.id,
       title: "Prepare mentoring scheme overview document",
       description: "Include case studies from similar retail partnerships and expected outcomes.",
-      dueDate: addDays(today, 8),
+      dueDate: addDays(8),
       priority: "medium",
       status: "in_progress",
     },
@@ -385,8 +400,8 @@ async function seed() {
       engagementId: nhsFramework.id,
       assignedUserId: priya.id,
       title: "Research NHS apprenticeship levy and Ofsted requirements",
-      description: "Check healthcare apprenticeship standards on the Institute for Apprenticeships website. Note any Ofsted considerations for clinical delivery.",
-      dueDate: addDays(today, 20),
+      description: "Check healthcare apprenticeship standards on the Institute for Apprenticeships website.",
+      dueDate: addDays(20),
       priority: "medium",
       status: "open",
     },
@@ -396,7 +411,7 @@ async function seed() {
       assignedUserId: sarah.id,
       title: "Legal review of T-Level subcontracting contract",
       description: "Share final draft with legal team. Check subcontracting rules under ESFA funding rules.",
-      dueDate: addDays(today, 10),
+      dueDate: addDays(10),
       priority: "high",
       status: "in_progress",
     },
@@ -406,7 +421,7 @@ async function seed() {
       assignedUserId: sarah.id,
       title: "Confirm guest lecture schedule with Marcus Webb",
       description: "Agree dates for all 4 Q1 sessions and share with the timetabling team.",
-      dueDate: addDays(today, -40),
+      dueDate: addDays(-40),
       priority: "medium",
       status: "completed",
     },
@@ -416,7 +431,7 @@ async function seed() {
       assignedUserId: priya.id,
       title: "Quality assurance visit — MTA delivery site",
       description: "Observe session delivery and review learner portfolios. Complete QA report by end of week.",
-      dueDate: addDays(today, 30),
+      dueDate: addDays(30),
       priority: "low",
       status: "open",
     },
@@ -424,6 +439,11 @@ async function seed() {
 
   console.log(`✓ 9 tasks`);
   console.log("\n✅ Seed complete!");
+  console.log("\nDemo login accounts:");
+  console.log("  admin@company.com    / Admin123!     (Admin)");
+  console.log("  manager@company.com  / Manager123!   (CRM Manager)");
+  console.log("  user@company.com     / User123!      (Engagement User)");
+  console.log("  readonly@company.com / ReadOnly123!  (Read Only)");
   process.exit(0);
 }
 

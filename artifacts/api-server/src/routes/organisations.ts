@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { organisationsTable, contactsTable, engagementsTable, usersTable } from "@workspace/db/schema";
 import { eq, ilike, and, sql, or } from "drizzle-orm";
+import { requireMinRole } from "../middlewares/requireRole";
 
 const router: IRouter = Router();
 
@@ -102,7 +103,7 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-router.post("/", async (req, res) => {
+router.post("/", requireMinRole("engagement_user"), async (req, res) => {
   try {
     const [org] = await db.insert(organisationsTable).values({ ...req.body, updatedAt: new Date() }).returning();
     let ownerName = null;
@@ -117,7 +118,7 @@ router.post("/", async (req, res) => {
   }
 });
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", requireMinRole("engagement_user"), async (req, res) => {
   try {
     const id = Number(req.params.id);
     const [org] = await db.update(organisationsTable).set({ ...req.body, updatedAt: new Date() }).where(eq(organisationsTable.id, id)).returning();
@@ -134,7 +135,7 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requireMinRole("crm_manager"), async (req, res) => {
   try {
     await db.delete(organisationsTable).where(eq(organisationsTable.id, Number(req.params.id)));
     res.status(204).send();
