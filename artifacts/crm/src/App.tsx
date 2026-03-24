@@ -9,6 +9,7 @@ import OrganisationDetail from "@/pages/OrganisationDetail";
 import Contacts from "@/pages/Contacts";
 import ContactDetail from "@/pages/ContactDetail";
 import Engagements from "@/pages/Engagements";
+import EngagementDetail from "@/pages/EngagementDetail";
 import Tasks from "@/pages/Tasks";
 import Settings from "@/pages/Settings";
 import Login from "@/pages/Login";
@@ -38,6 +39,7 @@ function Router() {
               <Route path="/contacts" component={Contacts} />
               <Route path="/contacts/:id" component={ContactDetail} />
               <Route path="/engagements" component={Engagements} />
+              <Route path="/engagements/:id" component={EngagementDetail} />
               <Route path="/tasks" component={Tasks} />
               <Route path="/settings" component={Settings} />
               <Route component={NotFound} />

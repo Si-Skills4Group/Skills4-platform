@@ -56,7 +56,8 @@ The CRM has 5 core modules, all mapped to future Dynamics 365 entities:
 - `/` — Dashboard (summary stats, engagement pipeline chart, upcoming tasks)
 - `/organisations` — Organisation list with search + filters (type/sector/region/status); Create/Edit forms; Detail view with linked engagements, contacts, tasks, notes; Quick-create modals for contact/engagement/task
 - `/contacts` — Contact list with search (name/email/job title) + org filter; Create/Edit/Delete with email validation; Detail view with linked engagements (where primary contact), organisation tasks, add task modal
-- `/engagements` — Engagement pipeline (kanban + table view), stages from prospect → closed
+- `/engagements` — Engagement pipeline (kanban + table view, HTML5 drag-and-drop, 7 stages, overdue highlighting, search/status filter, create/edit/delete); Detail page at `/engagements/:id` (stage stepper, stats cards, tasks section, notes, add task modal)
+- `/engagements/:id` — Engagement detail: stage pipeline stepper (clickable), next-action alert (overdue highlighted), stat cards (value/learners/probability/open tasks), details card, linked tasks table, notes, edit/delete modals; React Query cache updated immediately via `setQueryData` on mutation success
 - `/tasks` — Task list with priority/status filters, overdue highlighting
 - `/settings` — User profile settings
 
