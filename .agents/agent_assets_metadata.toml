@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "Z9dAsnVjTeDC2QA7lh6V-"
+uri = "file://README.md"
+type = "text"
+title = "README.md — Skills4CRM"
