@@ -153,17 +153,19 @@ function QuickTaskForm({
   organisationId,
   onSuccess,
   onCancel,
+  prefill,
 }: {
   engagementId: number;
   organisationId: number | null | undefined;
   onSuccess: () => void;
   onCancel: () => void;
+  prefill?: { title?: string; dueDate?: string };
 }) {
   const [form, setForm] = useState({
-    title: "",
+    title: prefill?.title ?? "",
     status: "open" as TaskStatus,
     priority: "medium" as TaskPriority,
-    dueDate: "",
+    dueDate: prefill?.dueDate ?? "",
     description: "",
     assignedUserId: "",
   });
@@ -409,6 +411,7 @@ export default function EngagementDetail() {
   const [showEdit, setShowEdit] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
+  const [taskPrefill, setTaskPrefill] = useState<{ title?: string; dueDate?: string } | undefined>(undefined);
 
   const queryClient = useQueryClient();
   const { canEdit, canDelete, canCreate } = usePermissions();
@@ -578,7 +581,7 @@ export default function EngagementDetail() {
           <div className={cn("mt-0.5 flex-shrink-0", nextActionOverdue ? "text-red-500" : "text-amber-500")}>
             {nextActionOverdue ? <AlertCircle size={18} /> : <CalendarClock size={18} />}
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <p className={cn("font-semibold text-sm", nextActionOverdue ? "text-red-700" : "text-amber-700")}>
               {nextActionOverdue ? "Overdue action" : "Upcoming action"} · {formatDate(eng.nextActionDate)}
             </p>
@@ -588,6 +591,25 @@ export default function EngagementDetail() {
               </p>
             )}
           </div>
+          {canCreate && (
+            <button
+              onClick={() => {
+                setTaskPrefill({
+                  title: eng.nextActionNote ?? undefined,
+                  dueDate: eng.nextActionDate ?? undefined,
+                });
+                setShowAddTask(true);
+              }}
+              className={cn(
+                "text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors shrink-0",
+                nextActionOverdue
+                  ? "border-red-300 text-red-700 hover:bg-red-100"
+                  : "border-amber-300 text-amber-700 hover:bg-amber-100"
+              )}
+            >
+              + Create Task
+            </button>
+          )}
         </div>
       )}
 
@@ -844,12 +866,18 @@ export default function EngagementDetail() {
       />
 
       {/* Add task modal */}
-      <Modal open={showAddTask} onClose={() => setShowAddTask(false)} title="Add Task" size="lg">
+      <Modal
+        open={showAddTask}
+        onClose={() => { setShowAddTask(false); setTaskPrefill(undefined); }}
+        title={taskPrefill?.title ? "Create Task from Next Action" : "Add Task"}
+        size="lg"
+      >
         <QuickTaskForm
           engagementId={id}
           organisationId={eng.organisationId}
-          onSuccess={() => setShowAddTask(false)}
-          onCancel={() => setShowAddTask(false)}
+          onSuccess={() => { setShowAddTask(false); setTaskPrefill(undefined); }}
+          onCancel={() => { setShowAddTask(false); setTaskPrefill(undefined); }}
+          prefill={taskPrefill}
         />
       </Modal>
     </div>
