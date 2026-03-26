@@ -291,13 +291,30 @@ export type DashboardSummaryEngagementsByStageItem = {
   count: number;
 };
 
+export type DashboardSummaryTasksByStatusItem = {
+  status: string;
+  count: number;
+};
+
+export type DashboardSummaryOrganisationsByTypeItem = {
+  type: string;
+  count: number;
+};
+
 export interface DashboardSummary {
   totalOrganisations: number;
+  activeOrganisations: number;
   totalContacts: number;
   totalEngagements: number;
+  wonEngagements: number;
   openTasks: number;
   overdueTasks: number;
   engagementsByStage: DashboardSummaryEngagementsByStageItem[];
+  tasksByStatus: DashboardSummaryTasksByStatusItem[];
+  organisationsByType: DashboardSummaryOrganisationsByTypeItem[];
+  myOpenTasks: Task[];
+  recentOrganisations: Organisation[];
+  upcomingNextActions: Engagement[];
   recentEngagements: Engagement[];
   upcomingTasks: Task[];
 }

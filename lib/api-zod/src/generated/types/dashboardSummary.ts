@@ -6,16 +6,26 @@
  * OpenAPI spec version: 0.2.0
  */
 import type { DashboardSummaryEngagementsByStageItem } from "./dashboardSummaryEngagementsByStageItem";
+import type { DashboardSummaryOrganisationsByTypeItem } from "./dashboardSummaryOrganisationsByTypeItem";
+import type { DashboardSummaryTasksByStatusItem } from "./dashboardSummaryTasksByStatusItem";
 import type { Engagement } from "./engagement";
+import type { Organisation } from "./organisation";
 import type { Task } from "./task";
 
 export interface DashboardSummary {
   totalOrganisations: number;
+  activeOrganisations: number;
   totalContacts: number;
   totalEngagements: number;
+  wonEngagements: number;
   openTasks: number;
   overdueTasks: number;
   engagementsByStage: DashboardSummaryEngagementsByStageItem[];
+  tasksByStatus: DashboardSummaryTasksByStatusItem[];
+  organisationsByType: DashboardSummaryOrganisationsByTypeItem[];
+  myOpenTasks: Task[];
+  recentOrganisations: Organisation[];
+  upcomingNextActions: Engagement[];
   recentEngagements: Engagement[];
   upcomingTasks: Task[];
 }

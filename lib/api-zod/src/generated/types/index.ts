@@ -13,6 +13,8 @@ export * from "./createOrganisationRequest";
 export * from "./createTaskRequest";
 export * from "./dashboardSummary";
 export * from "./dashboardSummaryEngagementsByStageItem";
+export * from "./dashboardSummaryOrganisationsByTypeItem";
+export * from "./dashboardSummaryTasksByStatusItem";
 export * from "./engagement";
 export * from "./engagementStage";
 export * from "./engagementStatus";

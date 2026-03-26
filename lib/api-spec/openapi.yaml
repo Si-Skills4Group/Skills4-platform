@@ -1090,9 +1090,13 @@ components:
       properties:
         totalOrganisations:
           type: integer
+        activeOrganisations:
+          type: integer
         totalContacts:
           type: integer
         totalEngagements:
+          type: integer
+        wonEngagements:
           type: integer
         openTasks:
           type: integer
@@ -1108,6 +1112,38 @@ components:
               count:
                 type: integer
             required: [stage, count]
+        tasksByStatus:
+          type: array
+          items:
+            type: object
+            properties:
+              status:
+                type: string
+              count:
+                type: integer
+            required: [status, count]
+        organisationsByType:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+              count:
+                type: integer
+            required: [type, count]
+        myOpenTasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/Task"
+        recentOrganisations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Organisation"
+        upcomingNextActions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Engagement"
         recentEngagements:
           type: array
           items:
@@ -1116,4 +1152,4 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Task"
-      required: [totalOrganisations, totalContacts, totalEngagements, openTasks, overdueTasks, engagementsByStage, recentEngagements, upcomingTasks]
+      required: [totalOrganisations, activeOrganisations, totalContacts, totalEngagements, wonEngagements, openTasks, overdueTasks, engagementsByStage, tasksByStatus, organisationsByType, myOpenTasks, recentOrganisations, upcomingNextActions, recentEngagements, upcomingTasks]
