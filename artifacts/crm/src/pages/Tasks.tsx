@@ -317,7 +317,7 @@ function TaskRow({
       </td>
 
       {/* Title + description */}
-      <td className="py-3 pr-4 max-w-[220px]">
+      <td className="py-3 pl-3 pr-4 max-w-[220px]">
         <p className={cn("font-medium text-sm leading-snug", isCompleted && "line-through text-muted-foreground")}>
           {task.title}
         </p>
