@@ -3,7 +3,7 @@ import { useRoute, Link, useLocation } from "wouter";
 import {
   ArrowLeft, Handshake, Building2, User2, Users, Pencil, Trash2, Plus,
   CalendarClock, CheckSquare, FileText, TrendingUp, GraduationCap,
-  Clock, AlertCircle, Trophy,
+  Clock, AlertCircle, Trophy, History,
 } from "lucide-react";
 import {
   useGetEngagement,
@@ -41,6 +41,7 @@ import {
   TableRow,
 } from "@/components/ui/core-ui";
 import { Modal, ConfirmModal } from "@/components/ui/Modal";
+import { ActivityFeed } from "@/components/ui/ActivityFeed";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatCurrency, formatDate, isOverdue, cn } from "@/lib/utils";
 import { StageBadge } from "./Engagements";
@@ -874,6 +875,17 @@ export default function EngagementDetail() {
               </CardContent>
             </Card>
           )}
+
+          {/* Activity Feed */}
+          <Card className="border shadow-sm">
+            <CardContent className="p-0">
+              <div className="flex items-center gap-2 px-5 py-4 border-b">
+                <History size={16} className="text-muted-foreground" />
+                <h3 className="font-semibold text-sm">Activity</h3>
+              </div>
+              <ActivityFeed entityType="engagement" entityId={eng.id} />
+            </CardContent>
+          </Card>
         </div>
       </div>
 

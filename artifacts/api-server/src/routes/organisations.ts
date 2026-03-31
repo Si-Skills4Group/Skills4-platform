@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { organisationsTable, contactsTable, engagementsTable, usersTable } from "@workspace/db/schema";
 import { eq, ilike, and, sql, or } from "drizzle-orm";
 import { requireMinRole } from "../middlewares/requireRole";
+import { logActivity } from "../lib/logActivity";
 
 const router: IRouter = Router();
 
@@ -111,6 +112,7 @@ router.post("/", requireMinRole("engagement_user"), async (req, res) => {
       const [user] = await db.select({ fullName: usersTable.fullName }).from(usersTable).where(eq(usersTable.id, org.ownerUserId));
       ownerName = user?.fullName ?? null;
     }
+    void logActivity("org_created", "organisation", org.id, req.user?.id, { orgName: org.name, orgType: org.type });
     res.status(201).json({ ...(await withCounts(org)), ownerName });
   } catch (err) {
     req.log.error(err);

@@ -6,6 +6,9 @@
  * OpenAPI spec version: 0.2.0
  */
 
+export * from "./activityEventType";
+export * from "./activityLogEntry";
+export * from "./activityLogEntryMetadata";
 export * from "./contact";
 export * from "./createContactRequest";
 export * from "./createEngagementRequest";
@@ -19,6 +22,7 @@ export * from "./engagement";
 export * from "./engagementStage";
 export * from "./engagementStatus";
 export * from "./healthStatus";
+export * from "./listActivityParams";
 export * from "./listContactsParams";
 export * from "./listEngagementsParams";
 export * from "./listOrganisationsParams";

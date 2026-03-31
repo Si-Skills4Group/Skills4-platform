@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { tasksTable, organisationsTable, engagementsTable, usersTable } from "@workspace/db/schema";
 import { eq, ilike, and, or, sql, lt } from "drizzle-orm";
 import { requireMinRole } from "../middlewares/requireRole";
+import { logActivity } from "../lib/logActivity";
 
 const router: IRouter = Router();
 
@@ -109,7 +110,9 @@ router.post("/", requireMinRole("engagement_user"), async (req, res) => {
 
 router.put("/:id", requireMinRole("engagement_user"), async (req, res) => {
   try {
-    const [task] = await db.update(tasksTable).set({ ...req.body, updatedAt: new Date() }).where(eq(tasksTable.id, Number(req.params.id))).returning();
+    const taskId = Number(req.params.id);
+    const [before] = await db.select({ status: tasksTable.status, title: tasksTable.title }).from(tasksTable).where(eq(tasksTable.id, taskId));
+    const [task] = await db.update(tasksTable).set({ ...req.body, updatedAt: new Date() }).where(eq(tasksTable.id, taskId)).returning();
     if (!task) return res.status(404).json({ error: "Not found" });
     let orgName = null, engTitle = null, assignedUserName = null;
     if (task.organisationId) {
@@ -124,6 +127,23 @@ router.put("/:id", requireMinRole("engagement_user"), async (req, res) => {
       const [u] = await db.select({ fullName: usersTable.fullName }).from(usersTable).where(eq(usersTable.id, task.assignedUserId));
       assignedUserName = u?.fullName ?? null;
     }
+
+    if (req.body.status === "completed" && before?.status !== "completed") {
+      void logActivity("task_completed", "task", task.id, req.user?.id, {
+        taskTitle: task.title, organisationId: task.organisationId, engagementId: task.engagementId, orgName, engTitle,
+      });
+      if (task.engagementId) {
+        void logActivity("task_completed", "engagement", task.engagementId, req.user?.id, {
+          taskTitle: task.title, taskId: task.id, orgName,
+        });
+      }
+      if (task.organisationId) {
+        void logActivity("task_completed", "organisation", task.organisationId, req.user?.id, {
+          taskTitle: task.title, taskId: task.id, engagementId: task.engagementId,
+        });
+      }
+    }
+
     res.json(format(task, orgName, engTitle, assignedUserName));
   } catch (err) {
     req.log.error(err);

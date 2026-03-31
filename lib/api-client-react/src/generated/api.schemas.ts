@@ -319,6 +319,31 @@ export interface DashboardSummary {
   upcomingTasks: Task[];
 }
 
+export type ActivityEventType =
+  (typeof ActivityEventType)[keyof typeof ActivityEventType];
+
+export const ActivityEventType = {
+  org_created: "org_created",
+  contact_added: "contact_added",
+  engagement_created: "engagement_created",
+  stage_changed: "stage_changed",
+  task_completed: "task_completed",
+} as const;
+
+export type ActivityLogEntryMetadata = { [key: string]: unknown } | null;
+
+export interface ActivityLogEntry {
+  id: number;
+  eventType: ActivityEventType;
+  entityType: string;
+  entityId: number;
+  actorUserId?: number | null;
+  actorName?: string | null;
+  actorEmail?: string | null;
+  metadata?: ActivityLogEntryMetadata;
+  createdAt: string;
+}
+
 export type ListOrganisationsParams = {
   search?: string;
   type?: string;
@@ -345,4 +370,9 @@ export type ListTasksParams = {
   priority?: string;
   organisationId?: number;
   engagementId?: number;
+};
+
+export type ListActivityParams = {
+  entityType: string;
+  entityId: number;
 };

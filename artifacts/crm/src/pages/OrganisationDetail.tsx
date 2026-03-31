@@ -2,8 +2,9 @@ import { useState } from "react";
 import { useRoute, Link } from "wouter";
 import {
   Building2, ArrowLeft, Globe, Phone, MapPin, User2, Plus, Pencil, Trash2,
-  Users, Handshake, CheckSquare, Tag, FileText, ChevronRight, CalendarClock,
+  Users, Handshake, CheckSquare, Tag, FileText, ChevronRight, CalendarClock, History,
 } from "lucide-react";
+import { ActivityFeed } from "@/components/ui/ActivityFeed";
 import {
   useGetOrganisation,
   useUpdateOrganisation,
@@ -643,9 +644,15 @@ export default function OrganisationDetail() {
                 </div>
               ))}
 
-              <div className="pt-3 border-t">
-                <p className="text-xs text-muted-foreground mb-1">Created</p>
-                <p className="text-sm">{formatDate(org.createdAt)}</p>
+              <div className="pt-3 border-t grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Created</p>
+                  <p className="text-sm">{formatDate(org.createdAt)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Last updated</p>
+                  <p className="text-sm">{formatDate(org.updatedAt)}</p>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -787,6 +794,15 @@ export default function OrganisationDetail() {
                 </table>
               </div>
             )}
+          </Card>
+
+          {/* Activity Feed */}
+          <Card className="shadow-sm">
+            <div className="px-6 py-4 border-b flex items-center gap-2">
+              <History size={16} className="text-muted-foreground" />
+              <h3 className="font-display font-bold text-lg">Activity</h3>
+            </div>
+            <ActivityFeed entityType="organisation" entityId={org.id} />
           </Card>
 
           {/* Tasks */}

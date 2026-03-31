@@ -616,6 +616,33 @@ export const DeleteTaskParams = zod.object({
 });
 
 /**
+ * @summary List activity log entries for an entity
+ */
+export const ListActivityQueryParams = zod.object({
+  entityType: zod.coerce.string(),
+  entityId: zod.coerce.number(),
+});
+
+export const ListActivityResponseItem = zod.object({
+  id: zod.number(),
+  eventType: zod.enum([
+    "org_created",
+    "contact_added",
+    "engagement_created",
+    "stage_changed",
+    "task_completed",
+  ]),
+  entityType: zod.string(),
+  entityId: zod.number(),
+  actorUserId: zod.number().nullish(),
+  actorName: zod.string().nullish(),
+  actorEmail: zod.string().nullish(),
+  metadata: zod.record(zod.string(), zod.unknown()).nullish(),
+  createdAt: zod.string(),
+});
+export const ListActivityResponse = zod.array(ListActivityResponseItem);
+
+/**
  * @summary Get dashboard summary stats
  */
 export const GetDashboardSummaryResponse = zod.object({

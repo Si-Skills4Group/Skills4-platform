@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { engagementsTable, organisationsTable, contactsTable, usersTable } from "@workspace/db/schema";
 import { eq, ilike, and, or } from "drizzle-orm";
 import { requireMinRole } from "../middlewares/requireRole";
+import { logActivity } from "../lib/logActivity";
 
 const router: IRouter = Router();
 
@@ -113,6 +114,14 @@ router.post("/", requireMinRole("engagement_user"), async (req, res) => {
       const [u] = await db.select({ fullName: usersTable.fullName }).from(usersTable).where(eq(usersTable.id, eng.ownerUserId));
       ownerName = u?.fullName ?? null;
     }
+    void logActivity("engagement_created", "engagement", eng.id, req.user?.id, {
+      title: eng.title, stage: eng.stage, orgName, organisationId: eng.organisationId,
+    });
+    if (eng.organisationId) {
+      void logActivity("engagement_created", "organisation", eng.organisationId, req.user?.id, {
+        title: eng.title, engagementId: eng.id, stage: eng.stage,
+      });
+    }
     res.status(201).json(format(eng, orgName, contactName, ownerName));
   } catch (err) {
     req.log.error(err);
@@ -122,9 +131,12 @@ router.post("/", requireMinRole("engagement_user"), async (req, res) => {
 
 router.put("/:id", requireMinRole("engagement_user"), async (req, res) => {
   try {
+    const engId = Number(req.params.id);
     const body = { ...req.body };
     if (body.expectedValue != null) body.expectedValue = String(body.expectedValue);
-    const [eng] = await db.update(engagementsTable).set({ ...body, updatedAt: new Date() }).where(eq(engagementsTable.id, Number(req.params.id))).returning();
+
+    const [before] = await db.select({ stage: engagementsTable.stage }).from(engagementsTable).where(eq(engagementsTable.id, engId));
+    const [eng] = await db.update(engagementsTable).set({ ...body, updatedAt: new Date() }).where(eq(engagementsTable.id, engId)).returning();
     if (!eng) return res.status(404).json({ error: "Not found" });
 
     let orgName = null, contactName = null, ownerName = null;
@@ -140,6 +152,18 @@ router.put("/:id", requireMinRole("engagement_user"), async (req, res) => {
       const [u] = await db.select({ fullName: usersTable.fullName }).from(usersTable).where(eq(usersTable.id, eng.ownerUserId));
       ownerName = u?.fullName ?? null;
     }
+
+    if (body.stage && before?.stage && body.stage !== before.stage) {
+      void logActivity("stage_changed", "engagement", eng.id, req.user?.id, {
+        stageFrom: before.stage, stageTo: body.stage, title: eng.title, status: eng.status,
+      });
+      if (eng.organisationId) {
+        void logActivity("stage_changed", "organisation", eng.organisationId, req.user?.id, {
+          stageFrom: before.stage, stageTo: body.stage, title: eng.title, engagementId: eng.id,
+        });
+      }
+    }
+
     res.json(format(eng, orgName, contactName, ownerName));
   } catch (err) {
     req.log.error(err);

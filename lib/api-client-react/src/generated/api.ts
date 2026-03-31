@@ -17,6 +17,7 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  ActivityLogEntry,
   Contact,
   CreateContactRequest,
   CreateEngagementRequest,
@@ -25,6 +26,7 @@ import type {
   DashboardSummary,
   Engagement,
   HealthStatus,
+  ListActivityParams,
   ListContactsParams,
   ListEngagementsParams,
   ListOrganisationsParams,
@@ -2249,6 +2251,100 @@ export const useDeleteTask = <
 > => {
   return useMutation(getDeleteTaskMutationOptions(options));
 };
+
+/**
+ * @summary List activity log entries for an entity
+ */
+export const getListActivityUrl = (params: ListActivityParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/activity?${stringifiedParams}`
+    : `/api/activity`;
+};
+
+export const listActivity = async (
+  params: ListActivityParams,
+  options?: RequestInit,
+): Promise<ActivityLogEntry[]> => {
+  return customFetch<ActivityLogEntry[]>(getListActivityUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListActivityQueryKey = (params?: ListActivityParams) => {
+  return [`/api/activity`, ...(params ? [params] : [])] as const;
+};
+
+export const getListActivityQueryOptions = <
+  TData = Awaited<ReturnType<typeof listActivity>>,
+  TError = ErrorType<unknown>,
+>(
+  params: ListActivityParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listActivity>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListActivityQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listActivity>>> = ({
+    signal,
+  }) => listActivity(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listActivity>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListActivityQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listActivity>>
+>;
+export type ListActivityQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List activity log entries for an entity
+ */
+
+export function useListActivity<
+  TData = Awaited<ReturnType<typeof listActivity>>,
+  TError = ErrorType<unknown>,
+>(
+  params: ListActivityParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listActivity>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListActivityQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Get dashboard summary stats

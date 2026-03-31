@@ -72,6 +72,7 @@ All routes under `/api/`:
 - `GET/PUT/DELETE /engagements/:id` — detail / update / delete
 - `GET/POST /tasks` — list / create (supports status/priority filters)
 - `GET/PUT/DELETE /tasks/:id` — detail / update / delete
+- `GET /activity?entityType=X&entityId=Y` — activity log entries for a record
 - `GET /dashboard/summary` — aggregated stats for dashboard
 
 ## Authentication & RBAC
@@ -184,6 +185,19 @@ Located in `lib/db/src/schema/`. Each file contains D365 field-mapping comments 
 | priority | text | low / medium / high → prioritycode |
 | status | text | open / in_progress / completed / overdue → statuscode |
 
+### `activityLog.ts` — Activity Log (D365: Audit)
+| Column | Type | Notes |
+|---|---|---|
+| id | serial PK | |
+| event_type | text | org_created / contact_added / engagement_created / stage_changed / task_completed |
+| entity_type | text | organisation / contact / engagement / task |
+| entity_id | int | FK to the related entity (no hard constraint) |
+| actor_user_id | int FK → users | who triggered the event |
+| metadata | jsonb | event-specific data (e.g. fromStage, toStage, contactName, engagementTitle) |
+| created_at | timestamp | |
+
+Activity events are logged server-side by `logActivity()` and cross-posted to related entities (e.g. a contact_added event is logged for both `contact` and `organisation`). The `ActivityFeed` component in the CRM renders these per entity.
+
 ## Indexes
 
 All FK columns are indexed. Additional indexes:
@@ -227,6 +241,8 @@ Express 5 API server. Routes live in `src/routes/`.
 - `src/routes/engagements.ts` — Engagement CRUD
 - `src/routes/tasks.ts` — Task CRUD
 - `src/routes/dashboard.ts` — Dashboard summary
+- `src/routes/activityLog.ts` — `GET /api/activity?entityType&entityId`
+- `src/lib/logActivity.ts` — `logActivity()` helper (inserts to activity_log; auto cross-posts to related entities)
 
 ### `lib/db` (`@workspace/db`)
 

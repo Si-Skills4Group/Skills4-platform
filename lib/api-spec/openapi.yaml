@@ -563,6 +563,33 @@ paths:
         "204":
           description: Deleted
 
+  # --- Activity Log ---
+  /activity:
+    get:
+      operationId: listActivity
+      tags: [activity]
+      summary: List activity log entries for an entity
+      parameters:
+        - name: entityType
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: entityId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Activity log entries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityLogEntry"
+
   # --- Dashboard ---
   /dashboard/summary:
     get:
@@ -1153,3 +1180,36 @@ components:
           items:
             $ref: "#/components/schemas/Task"
       required: [totalOrganisations, activeOrganisations, totalContacts, totalEngagements, wonEngagements, openTasks, overdueTasks, engagementsByStage, tasksByStatus, organisationsByType, myOpenTasks, recentOrganisations, upcomingNextActions, recentEngagements, upcomingTasks]
+
+    # --- Activity Log ---
+    ActivityEventType:
+      type: string
+      enum: [org_created, contact_added, engagement_created, stage_changed, task_completed]
+
+    ActivityLogEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+        eventType:
+          $ref: "#/components/schemas/ActivityEventType"
+        entityType:
+          type: string
+        entityId:
+          type: integer
+        actorUserId:
+          type: integer
+          nullable: true
+        actorName:
+          type: string
+          nullable: true
+        actorEmail:
+          type: string
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+          nullable: true
+        createdAt:
+          type: string
+      required: [id, eventType, entityType, entityId, createdAt]

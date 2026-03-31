@@ -7,6 +7,7 @@ import engagementsRouter from "./engagements";
 import tasksRouter from "./tasks";
 import dashboardRouter from "./dashboard";
 import usersRouter from "./users";
+import activityLogRouter from "./activityLog";
 import { authenticate } from "../middlewares/authenticate";
 
 const router: IRouter = Router();
@@ -23,5 +24,6 @@ router.use("/engagements", engagementsRouter);
 router.use("/tasks", tasksRouter);
 router.use("/dashboard", dashboardRouter);
 router.use("/users", usersRouter);
+router.use("/activity", activityLogRouter);
 
 export default router;
