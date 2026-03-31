@@ -3,7 +3,7 @@ import { useRoute, Link, useLocation } from "wouter";
 import {
   ArrowLeft, Handshake, Building2, User2, Users, Pencil, Trash2, Plus,
   CalendarClock, CheckSquare, FileText, TrendingUp, GraduationCap,
-  Clock, AlertCircle,
+  Clock, AlertCircle, Trophy,
 } from "lucide-react";
 import {
   useGetEngagement,
@@ -412,6 +412,9 @@ export default function EngagementDetail() {
   const [showDelete, setShowDelete] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
   const [taskPrefill, setTaskPrefill] = useState<{ title?: string; dueDate?: string } | undefined>(undefined);
+  const [showWonConfirm, setShowWonConfirm] = useState(false);
+  const [showDormantModal, setShowDormantModal] = useState(false);
+  const [dormantReason, setDormantReason] = useState("");
 
   const queryClient = useQueryClient();
   const { canEdit, canDelete, canCreate } = usePermissions();
@@ -435,7 +438,38 @@ export default function EngagementDetail() {
 
   function handleStageChange(stage: EngagementStage) {
     if (!eng) return;
+    if (stage === "won") {
+      setShowWonConfirm(true);
+      return;
+    }
+    if (stage === "dormant") {
+      setDormantReason("");
+      setShowDormantModal(true);
+      return;
+    }
     updateMutation.mutate({ id: eng.id, data: { stage } });
+  }
+
+  function confirmWon(closeAsWon: boolean) {
+    if (!eng) return;
+    updateMutation.mutate({
+      id: eng.id,
+      data: closeAsWon ? { stage: "won", status: "closed_won" } : { stage: "won" },
+    });
+    setShowWonConfirm(false);
+  }
+
+  function confirmDormant() {
+    if (!eng) return;
+    const appendedNotes = dormantReason.trim()
+      ? [eng.notes, `[Dormant – ${new Date().toLocaleDateString("en-GB")}] ${dormantReason.trim()}`].filter(Boolean).join("\n\n")
+      : eng.notes ?? null;
+    updateMutation.mutate({
+      id: eng.id,
+      data: { stage: "dormant", notes: appendedNotes },
+    });
+    setShowDormantModal(false);
+    setDormantReason("");
   }
 
   function handleUpdate(form: EngFormState) {
@@ -879,6 +913,78 @@ export default function EngagementDetail() {
           onCancel={() => { setShowAddTask(false); setTaskPrefill(undefined); }}
           prefill={taskPrefill}
         />
+      </Modal>
+
+      {/* Automation 4: Won stage confirmation */}
+      <Modal
+        open={showWonConfirm}
+        onClose={() => setShowWonConfirm(false)}
+        title="Moving to Won"
+      >
+        <div className="p-6 space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0 mt-0.5">
+              <Trophy className="h-5 w-5 text-amber-500" />
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">Mark as Won</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Would you also like to close this engagement as <strong>Closed Won</strong>? This updates the status to reflect a confirmed win.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 pt-1">
+            <Button
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={() => confirmWon(true)}
+              disabled={updateMutation.isPending}
+            >
+              {updateMutation.isPending ? "Saving…" : "Yes — mark as Won & Closed Won"}
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => confirmWon(false)}
+              disabled={updateMutation.isPending}
+            >
+              Just change stage to Won
+            </Button>
+            <Button variant="ghost" className="w-full text-muted-foreground" onClick={() => setShowWonConfirm(false)}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Automation 5: Dormant stage reason */}
+      <Modal
+        open={showDormantModal}
+        onClose={() => setShowDormantModal(false)}
+        title="Moving to Dormant"
+      >
+        <div className="p-6 space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Optionally capture why this engagement is going dormant. This will be appended to the engagement notes.
+          </p>
+          <div className="space-y-1.5">
+            <Label htmlFor="dormant-reason">Reason (optional)</Label>
+            <Textarea
+              id="dormant-reason"
+              value={dormantReason}
+              onChange={(e) => setDormantReason(e.target.value)}
+              placeholder="e.g. Employer paused hiring, budget constraints, contact left organisation…"
+              className="min-h-[100px]"
+            />
+          </div>
+          <div className="flex justify-end gap-3 pt-2 border-t">
+            <Button variant="outline" onClick={() => { confirmDormant(); }} disabled={updateMutation.isPending}>
+              Skip & move to Dormant
+            </Button>
+            <Button onClick={() => confirmDormant()} disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? "Saving…" : dormantReason.trim() ? "Save reason & move to Dormant" : "Move to Dormant"}
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Search, Building2, Globe, Phone, ChevronDown, X, SlidersHorizontal } from "lucide-react";
+import { Plus, Search, Building2, Globe, Phone, ChevronDown, X, SlidersHorizontal, Sparkles, User2, Handshake } from "lucide-react";
 import { Link } from "wouter";
 import {
   useListOrganisations,
@@ -7,6 +7,8 @@ import {
   useUpdateOrganisation,
   useDeleteOrganisation,
   useListUsers,
+  useCreateContact,
+  useCreateEngagement,
 } from "@workspace/api-client-react";
 import type {
   Organisation,
@@ -34,6 +36,7 @@ import {
 } from "@/components/ui/core-ui";
 import { Modal, ConfirmModal } from "@/components/ui/Modal";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useAuth } from "@/contexts/AuthContext";
 import { formatInitials } from "@/lib/utils";
 
 const ORG_TYPE_LABELS: Record<OrganisationType, string> = {
@@ -256,6 +259,85 @@ function OrgForm({
   );
 }
 
+function QuickContactForm({ orgId, orgName, onSuccess, onDone }: { orgId: number; orgName: string; onSuccess: () => void; onDone: () => void }) {
+  const [form, setForm] = useState({ firstName: "", lastName: "", jobTitle: "", email: "" });
+  const queryClient = useQueryClient();
+  const createContact = useCreateContact({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
+        onSuccess();
+      },
+    },
+  });
+  return (
+    <div className="p-6 space-y-4">
+      <p className="text-sm text-muted-foreground">Adding a contact to <span className="font-semibold text-foreground">{orgName}</span></p>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="qc-first">First name *</Label>
+          <Input id="qc-first" value={form.firstName} onChange={(e) => setForm(f => ({ ...f, firstName: e.target.value }))} placeholder="Jane" />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="qc-last">Last name *</Label>
+          <Input id="qc-last" value={form.lastName} onChange={(e) => setForm(f => ({ ...f, lastName: e.target.value }))} placeholder="Smith" />
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="qc-job">Job title</Label>
+        <Input id="qc-job" value={form.jobTitle} onChange={(e) => setForm(f => ({ ...f, jobTitle: e.target.value }))} placeholder="e.g. HR Manager" />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="qc-email">Email</Label>
+        <Input id="qc-email" type="email" value={form.email} onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))} placeholder="jane@example.com" />
+      </div>
+      <div className="flex justify-end gap-3 pt-2 border-t">
+        <Button type="button" variant="outline" onClick={onDone} disabled={createContact.isPending}>Skip</Button>
+        <Button
+          type="button"
+          disabled={!form.firstName.trim() || !form.lastName.trim() || createContact.isPending}
+          onClick={() => createContact.mutate({ data: { firstName: form.firstName, lastName: form.lastName, jobTitle: form.jobTitle || null, email: form.email || null, organisationId: orgId } })}
+        >
+          {createContact.isPending ? "Saving…" : "Save Contact"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function QuickEngagementForm({ orgId, orgName, onSuccess, onDone }: { orgId: number; orgName: string; onSuccess: () => void; onDone: () => void }) {
+  const [title, setTitle] = useState(`Engagement with ${orgName}`);
+  const queryClient = useQueryClient();
+  const createEng = useCreateEngagement({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["/api/engagements"] });
+        onSuccess();
+      },
+    },
+  });
+  return (
+    <div className="p-6 space-y-4">
+      <p className="text-sm text-muted-foreground">Creating a new engagement for <span className="font-semibold text-foreground">{orgName}</span></p>
+      <div className="space-y-1.5">
+        <Label htmlFor="qe-title">Engagement title *</Label>
+        <Input id="qe-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Apprenticeship placement 2025" />
+      </div>
+      <p className="text-xs text-muted-foreground">Stage will be set to <strong>Lead</strong>. You can update it from the engagement detail page.</p>
+      <div className="flex justify-end gap-3 pt-2 border-t">
+        <Button type="button" variant="outline" onClick={onDone} disabled={createEng.isPending}>Skip</Button>
+        <Button
+          type="button"
+          disabled={!title.trim() || createEng.isPending}
+          onClick={() => createEng.mutate({ data: { title: title.trim(), stage: "lead", status: "open", organisationId: orgId } })}
+        >
+          {createEng.isPending ? "Saving…" : "Save Engagement"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function Organisations() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
@@ -266,9 +348,14 @@ export default function Organisations() {
   const [showCreate, setShowCreate] = useState(false);
   const [editOrg, setEditOrg] = useState<Organisation | null>(null);
   const [deleteOrg, setDeleteOrg] = useState<Organisation | null>(null);
+  const [newlyCreatedOrg, setNewlyCreatedOrg] = useState<Organisation | null>(null);
+  const [showNextSteps, setShowNextSteps] = useState(false);
+  const [showAddFirstContact, setShowAddFirstContact] = useState(false);
+  const [showAddFirstEngagement, setShowAddFirstEngagement] = useState(false);
 
   const queryClient = useQueryClient();
   const { canCreate, canEdit, canDelete } = usePermissions();
+  const { user } = useAuth();
 
   const { data: organisations = [], isLoading } = useListOrganisations({
     search: search || undefined,
@@ -281,9 +368,11 @@ export default function Organisations() {
 
   const createMutation = useCreateOrganisation({
     mutation: {
-      onSuccess: () => {
+      onSuccess: (data) => {
         queryClient.invalidateQueries({ queryKey: ["/api/organisations"] });
         setShowCreate(false);
+        setNewlyCreatedOrg(data as Organisation);
+        setShowNextSteps(true);
       },
     },
   });
@@ -520,11 +609,94 @@ export default function Organisations() {
         size="lg"
       >
         <OrgForm
-          initial={DEFAULT_FORM}
+          initial={{ ...DEFAULT_FORM, ownerUserId: user?.id?.toString() ?? "" }}
           onSubmit={handleCreate}
           onCancel={() => setShowCreate(false)}
           isPending={createMutation.isPending}
         />
+      </Modal>
+
+      {/* Automation 1: Post-creation "What's next?" modal */}
+      <Modal
+        open={showNextSteps && !!newlyCreatedOrg && !showAddFirstContact && !showAddFirstEngagement}
+        onClose={() => setShowNextSteps(false)}
+        title="Organisation created"
+      >
+        <div className="p-6 space-y-4">
+          <div className="flex items-center gap-3 pb-2">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
+              <Sparkles className="h-5 w-5 text-emerald-500" />
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">{newlyCreatedOrg?.name} was added.</p>
+              <p className="text-sm text-muted-foreground">Would you like to set it up further?</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-3">
+            <button
+              onClick={() => setShowAddFirstContact(true)}
+              className="flex items-center gap-3 p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-primary/5 transition-all text-left group"
+            >
+              <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+                <User2 className="h-4 w-4 text-blue-500" />
+              </div>
+              <div>
+                <p className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">Add first contact</p>
+                <p className="text-xs text-muted-foreground">Capture the key person at this organisation</p>
+              </div>
+            </button>
+            <button
+              onClick={() => setShowAddFirstEngagement(true)}
+              className="flex items-center gap-3 p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-primary/5 transition-all text-left group"
+            >
+              <div className="w-9 h-9 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0">
+                <Handshake className="h-4 w-4 text-indigo-500" />
+              </div>
+              <div>
+                <p className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">Create first engagement</p>
+                <p className="text-xs text-muted-foreground">Start tracking an opportunity with this employer</p>
+              </div>
+            </button>
+          </div>
+          <div className="flex justify-between items-center pt-2 border-t">
+            <Link href={`/organisations/${newlyCreatedOrg?.id}`}>
+              <Button variant="ghost" size="sm" onClick={() => setShowNextSteps(false)}>View organisation →</Button>
+            </Link>
+            <Button variant="outline" onClick={() => setShowNextSteps(false)}>Done for now</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Add first contact sub-modal */}
+      <Modal
+        open={showAddFirstContact && !!newlyCreatedOrg}
+        onClose={() => setShowAddFirstContact(false)}
+        title="Add first contact"
+      >
+        {newlyCreatedOrg && (
+          <QuickContactForm
+            orgId={newlyCreatedOrg.id}
+            orgName={newlyCreatedOrg.name}
+            onSuccess={() => { setShowAddFirstContact(false); setShowNextSteps(false); }}
+            onDone={() => setShowAddFirstContact(false)}
+          />
+        )}
+      </Modal>
+
+      {/* Add first engagement sub-modal */}
+      <Modal
+        open={showAddFirstEngagement && !!newlyCreatedOrg}
+        onClose={() => setShowAddFirstEngagement(false)}
+        title="Create first engagement"
+      >
+        {newlyCreatedOrg && (
+          <QuickEngagementForm
+            orgId={newlyCreatedOrg.id}
+            orgName={newlyCreatedOrg.name}
+            onSuccess={() => { setShowAddFirstEngagement(false); setShowNextSteps(false); }}
+            onDone={() => setShowAddFirstEngagement(false)}
+          />
+        )}
       </Modal>
 
       {/* Edit Modal */}

@@ -1,7 +1,8 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import {
   Plus, Search, LayoutGrid, List, Handshake, X, SlidersHorizontal,
   Building2, User2, CalendarClock, TrendingUp, GraduationCap, ChevronRight,
+  CheckSquare,
 } from "lucide-react";
 import { Link } from "wouter";
 import {
@@ -12,6 +13,7 @@ import {
   useListOrganisations,
   useListContacts,
   useListUsers,
+  useCreateTask,
 } from "@workspace/api-client-react";
 import type {
   Engagement,
@@ -597,6 +599,9 @@ export default function Engagements() {
   const [deleteEng, setDeleteEng] = useState<Engagement | null>(null);
   const [draggedId, setDraggedId] = useState<number | null>(null);
   const [dragOverStage, setDragOverStage] = useState<EngagementStage | null>(null);
+  const [postCreateTask, setPostCreateTask] = useState<{
+    engId: number; orgId: number | null; nextActionDate: string; note: string;
+  } | null>(null);
 
   const queryClient = useQueryClient();
   const { canCreate, canEdit, canDelete } = usePermissions();
@@ -606,12 +611,30 @@ export default function Engagements() {
     status: statusFilter || undefined,
   });
 
-  const createMutation = useCreateEngagement({
+  const createTaskMutation = useCreateTask({
     mutation: {
       onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+        setPostCreateTask(null);
+      },
+    },
+  });
+
+  const createMutation = useCreateEngagement({
+    mutation: {
+      onSuccess: (data, variables) => {
         queryClient.invalidateQueries({ queryKey: ["/api/engagements"] });
         queryClient.invalidateQueries({ queryKey: ["/api/organisations"] });
         setShowCreate(false);
+        const nextDate = variables.data.nextActionDate;
+        if (nextDate) {
+          setPostCreateTask({
+            engId: (data as Engagement).id,
+            orgId: (data as Engagement).organisationId ?? null,
+            nextActionDate: nextDate,
+            note: variables.data.nextActionNote ?? (data as Engagement).title ?? "",
+          });
+        }
       },
     },
   });
@@ -949,6 +972,57 @@ export default function Engagements() {
         isDestructive
         isPending={deleteMutation.isPending}
       />
+
+      {/* Automation 2: Next action → create task prompt */}
+      <Modal
+        open={!!postCreateTask}
+        onClose={() => setPostCreateTask(null)}
+        title="Create a task for this next action?"
+      >
+        {postCreateTask && (
+          <div className="p-6 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center shrink-0 mt-0.5">
+                <CheckSquare className="h-5 w-5 text-sky-500" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  You set a next action for <strong>{new Date(postCreateTask.nextActionDate).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</strong>.
+                </p>
+                {postCreateTask.note && (
+                  <p className="text-sm font-medium text-foreground mt-1">"{postCreateTask.note}"</p>
+                )}
+                <p className="text-sm text-muted-foreground mt-2">
+                  Would you like to auto-create a task with this due date so it shows up in your task list?
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 pt-1">
+              <Button
+                className="w-full"
+                onClick={() =>
+                  createTaskMutation.mutate({
+                    data: {
+                      title: postCreateTask.note || "Follow-up action",
+                      status: "open",
+                      priority: "medium",
+                      dueDate: postCreateTask.nextActionDate,
+                      engagementId: postCreateTask.engId,
+                      organisationId: postCreateTask.orgId ?? undefined,
+                    },
+                  })
+                }
+                disabled={createTaskMutation.isPending}
+              >
+                {createTaskMutation.isPending ? "Creating task…" : "Yes, create task"}
+              </Button>
+              <Button variant="outline" className="w-full" onClick={() => setPostCreateTask(null)}>
+                No thanks
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

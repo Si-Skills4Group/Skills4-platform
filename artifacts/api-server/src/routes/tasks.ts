@@ -1,10 +1,23 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { tasksTable, organisationsTable, engagementsTable, usersTable } from "@workspace/db/schema";
-import { eq, ilike, and, or } from "drizzle-orm";
+import { eq, ilike, and, or, sql, lt } from "drizzle-orm";
 import { requireMinRole } from "../middlewares/requireRole";
 
 const router: IRouter = Router();
+
+async function markOverdueTasks() {
+  const today = new Date().toISOString().split("T")[0];
+  await db
+    .update(tasksTable)
+    .set({ status: "overdue", updatedAt: new Date() })
+    .where(
+      and(
+        or(eq(tasksTable.status, "open"), eq(tasksTable.status, "in_progress")),
+        sql`${tasksTable.dueDate} < ${today}`,
+      ),
+    );
+}
 
 function format(
   task: typeof tasksTable.$inferSelect,
@@ -24,6 +37,7 @@ function format(
 
 router.get("/", async (req, res) => {
   try {
+    await markOverdueTasks();
     const { search, status, priority, organisationId, engagementId } = req.query as Record<string, string>;
     const conditions = [];
     if (search) conditions.push(or(ilike(tasksTable.title, `%${search}%`), ilike(tasksTable.description, `%${search}%`)));
