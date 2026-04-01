@@ -650,7 +650,11 @@ export default function Engagements() {
 
   const deleteMutation = useDeleteEngagement({
     mutation: {
-      onSuccess: () => {
+      onSuccess: (_data, variables) => {
+        queryClient.setQueriesData<Engagement[]>(
+          { queryKey: ["/api/engagements"] },
+          (old) => old?.filter((e) => e.id !== variables.id) ?? old
+        );
         queryClient.invalidateQueries({ queryKey: ["/api/engagements"] });
         setDeleteEng(null);
       },

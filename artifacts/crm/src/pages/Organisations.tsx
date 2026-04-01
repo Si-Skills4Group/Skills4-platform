@@ -388,7 +388,11 @@ export default function Organisations() {
 
   const deleteMutation = useDeleteOrganisation({
     mutation: {
-      onSuccess: () => {
+      onSuccess: (_data, variables) => {
+        queryClient.setQueriesData<Organisation[]>(
+          { queryKey: ["/api/organisations"] },
+          (old) => old?.filter((o) => o.id !== variables.id) ?? old
+        );
         queryClient.invalidateQueries({ queryKey: ["/api/organisations"] });
         setDeleteOrg(null);
       },

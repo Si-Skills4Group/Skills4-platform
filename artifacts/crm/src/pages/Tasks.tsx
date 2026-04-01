@@ -498,7 +498,16 @@ export default function Tasks() {
   });
 
   const deleteMutation = useDeleteTask({
-    mutation: { onSuccess: () => { invalidate(); setDeleteTask(null); } },
+    mutation: {
+      onSuccess: (_data, variables) => {
+        queryClient.setQueriesData<Task[]>(
+          { queryKey: ["/api/tasks"] },
+          (old) => old?.filter((t) => t.id !== variables.id) ?? old
+        );
+        invalidate();
+        setDeleteTask(null);
+      },
+    },
   });
 
   function handleCreate(form: TaskFormState) {
