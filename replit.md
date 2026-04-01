@@ -209,10 +209,21 @@ All FK columns are indexed. Additional indexes:
 
 ## Seeding
 
-Run seed data (4 users, 7 orgs, 7 contacts, 7 engagements, 9 tasks):
+Run seed data (4 users, 12 orgs, 20 contacts, 15 engagements, 18 tasks):
 ```bash
 pnpm --filter @workspace/scripts run seed
 ```
+
+### Demo Dataset Story
+The dataset represents a FE college employer engagement team ("SkillsBridge Midlands") managing apprenticeships and T-Level placements across the West and East Midlands:
+
+**12 Organisations** — 8 employers (TechCorp, Midlands Manufacturing, Retail Horizons, HealthFirst NHS Trust, West Midlands Combined Authority, Apex Financial Services, CloudNative Labs, Birmingham Construction, Oakwood Care Group), 1 training provider (Midlands Training Alliance), 1 partner (WMCA), 1 dormant (Startup Collective), 1 prospect (Green Energy Partners).
+
+**20 Contacts** — 2–3 per org with realistic job titles (Head of HR, Early Careers Manager, Workforce Development Director, Director of Workforce Planning, Partnerships Director, etc.).
+
+**15 Engagements** — across all 7 stages. 2 Closed Won (TechCorp Guest Lectures, Retail Horizons Mentoring), 3 Active (MTA T-Level, WMCA Leadership, Oakwood Care Leadership), 3 Proposals (TechCorp Digital, Retail Management, Apex Financial), 2 Meeting Booked, 2 Contacted, 2 Lead, 1 Dormant.
+
+**18 Tasks** — realistic mix: 3 explicitly overdue (chasing overdue documents/approvals), 3 in-progress (legal reviews, proposals), 11 open (upcoming calls, visits, research), 2 completed (closed-won follow-ups).
 
 ## TypeScript & Composite Projects
 

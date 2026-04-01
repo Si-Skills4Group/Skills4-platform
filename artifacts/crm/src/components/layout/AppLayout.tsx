@@ -54,20 +54,28 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     navigate("/login");
   }
 
+  const activePage = navigation.find((item) => {
+    if (item.href === "/") return window.location.pathname === "/";
+    return window.location.pathname.startsWith(item.href);
+  });
+
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden">
       {/* Sidebar */}
-      <div className="w-64 flex-shrink-0 border-r bg-sidebar text-sidebar-foreground flex flex-col hidden md:flex">
-        <div className="h-16 flex items-center px-6 border-b border-sidebar-border">
-          <div className="flex items-center gap-2 text-sidebar-primary">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground shadow-lg shadow-primary/20">
-              <Building2 size={18} strokeWidth={2.5} />
+      <div className="w-60 flex-shrink-0 bg-sidebar text-sidebar-foreground flex flex-col hidden md:flex border-r border-sidebar-border/50">
+        {/* Logo */}
+        <div className="h-14 flex items-center px-5 border-b border-sidebar-border/60">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-sidebar-primary flex items-center justify-center shadow-lg shadow-sidebar-primary/30 flex-shrink-0">
+              <Building2 size={15} strokeWidth={2.5} className="text-white" />
             </div>
-            <span className="font-display font-bold text-xl tracking-tight text-white">Skills4CRM</span>
+            <span className="font-display font-bold text-lg tracking-tight text-white">Skills4CRM</span>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto py-6 px-3 space-y-1">
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto py-5 px-3 space-y-0.5">
+          <p className="text-[10px] font-semibold text-sidebar-foreground/30 uppercase tracking-widest px-3 mb-2">Menu</p>
           {navigation.map((item) => {
             const [isActive] = useRoute(item.href);
             const match = item.href === "/" ? isActive : window.location.pathname.startsWith(item.href);
@@ -77,46 +85,46 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 key={item.name}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium transition-all duration-200 group relative",
+                  "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 group relative",
                   match
-                    ? "bg-primary/10 text-sidebar-primary"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-border hover:text-white"
+                    ? "bg-white/10 text-white"
+                    : "text-sidebar-foreground/60 hover:bg-white/6 hover:text-white"
                 )}
               >
                 {match && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-sidebar-primary rounded-r-full" />
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-sidebar-primary rounded-r-full" />
                 )}
                 <item.icon
-                  size={20}
+                  size={17}
                   className={cn(
-                    "transition-colors",
-                    match ? "text-sidebar-primary" : "text-sidebar-foreground/50 group-hover:text-white"
+                    "flex-shrink-0 transition-colors",
+                    match ? "text-sidebar-primary" : "text-sidebar-foreground/40 group-hover:text-sidebar-foreground/70"
                   )}
                 />
-                {item.name}
+                <span>{item.name}</span>
               </Link>
             );
           })}
-        </div>
+        </nav>
 
         {/* User panel */}
-        <div className="p-4 border-t border-sidebar-border">
-          <div className="flex items-center gap-3 px-2 py-2">
-            <div className="w-8 h-8 rounded-full bg-primary/30 flex items-center justify-center font-bold text-xs text-primary-foreground flex-shrink-0">
+        <div className="p-3 border-t border-sidebar-border/60">
+          <div className="flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-white/5 transition-colors group">
+            <div className="w-7 h-7 rounded-full bg-sidebar-primary/40 flex items-center justify-center font-bold text-[11px] text-white flex-shrink-0">
               {user ? initials(user.fullName) : "?"}
             </div>
             <div className="text-sm min-w-0 flex-1">
-              <p className="font-medium text-white leading-none truncate">
+              <p className="font-medium text-white text-[13px] leading-none truncate">
                 {user?.fullName ?? "Unknown"}
               </p>
               {user && (
                 <span
                   className={cn(
-                    "inline-flex items-center gap-1 text-xs mt-1.5 px-1.5 py-0.5 rounded font-medium",
+                    "inline-flex items-center gap-1 text-[10px] mt-1 px-1.5 py-0.5 rounded font-medium",
                     ROLE_COLOURS[user.role] ?? "bg-slate-500/20 text-slate-300"
                   )}
                 >
-                  <Shield size={10} />
+                  <Shield size={9} />
                   {ROLE_LABELS[user.role] ?? user.role}
                 </span>
               )}
@@ -124,9 +132,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <button
               onClick={handleLogout}
               title="Sign out"
-              className="w-7 h-7 flex items-center justify-center rounded-lg text-sidebar-foreground/50 hover:text-white hover:bg-sidebar-border transition-all flex-shrink-0"
+              className="w-6 h-6 flex items-center justify-center rounded-md text-sidebar-foreground/30 hover:text-white hover:bg-white/10 transition-all flex-shrink-0 opacity-0 group-hover:opacity-100"
             >
-              <LogOut size={14} />
+              <LogOut size={13} />
             </button>
           </div>
         </div>
@@ -134,37 +142,39 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 flex-shrink-0 border-b bg-white flex items-center justify-between px-6 z-10 shadow-sm shadow-black/5">
+        {/* Header */}
+        <header className="h-14 flex-shrink-0 border-b bg-white flex items-center justify-between px-6 z-10 shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
           <div className="flex items-center gap-4 flex-1">
-            <div className="relative w-full max-w-md hidden sm:block">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            {activePage && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <activePage.icon size={15} className="text-muted-foreground/70" />
+                <span className="font-semibold text-foreground">{activePage.name}</span>
+              </div>
+            )}
+            <div className="relative w-full max-w-xs hidden lg:block">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 h-3.5 w-3.5" />
               <input
                 type="text"
-                placeholder="Search across CRM..."
-                className="w-full pl-9 pr-4 py-2 bg-muted/50 border-transparent focus:bg-white focus:border-primary focus:ring-2 focus:ring-primary/20 rounded-full text-sm transition-all"
+                placeholder="Quick search…"
+                className="w-full pl-8 pr-4 py-1.5 bg-muted/60 border border-transparent focus:bg-white focus:border-primary/30 focus:ring-2 focus:ring-primary/10 rounded-lg text-sm transition-all placeholder:text-muted-foreground/50"
               />
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {user && (
-              <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
-                <span className="font-medium text-foreground">{user.fullName}</span>
-                <span
-                  className={cn(
-                    "text-xs px-2 py-0.5 rounded-full font-medium",
-                    ROLE_COLOURS[user.role]?.replace("text-", "text-") ?? ""
-                  )}
-                  style={{ backgroundColor: "transparent" }}
-                >
-                </span>
+              <div className="hidden sm:flex items-center gap-2 text-sm">
+                <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center font-bold text-[11px] text-primary">
+                  {initials(user.fullName)}
+                </div>
+                <span className="font-medium text-foreground text-[13px]">{user.fullName}</span>
               </div>
             )}
             <button
               onClick={handleLogout}
               title="Sign out"
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-all ml-1"
             >
-              <LogOut size={15} />
+              <LogOut size={13} />
               <span className="hidden sm:inline">Sign out</span>
             </button>
           </div>

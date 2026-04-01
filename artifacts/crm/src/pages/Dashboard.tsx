@@ -58,6 +58,13 @@ const TYPE_LABELS: Record<string, string> = {
   partner: "Partner",
 };
 
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return "morning";
+  if (h < 17) return "afternoon";
+  return "evening";
+}
+
 const PRIORITY_DOT: Record<string, string> = {
   high: "bg-red-500",
   medium: "bg-amber-400",
@@ -82,18 +89,21 @@ function SummaryCard({
   highlight?: boolean;
 }) {
   return (
-    <Card className={cn("border-border/50 hover:shadow-md transition-shadow", highlight && "ring-1 ring-destructive/30")}>
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{title}</p>
-            <p className={cn("text-3xl font-bold mt-1.5 tabular-nums", highlight && value > 0 ? "text-destructive" : "text-foreground")}>
+    <Card className={cn(
+      "transition-shadow hover:shadow-md",
+      highlight && value > 0 ? "border-destructive/30 bg-destructive/[0.02]" : ""
+    )}>
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider truncate">{title}</p>
+            <p className={cn("text-2xl font-bold mt-1 tabular-nums leading-none", highlight && value > 0 ? "text-destructive" : "text-foreground")}>
               {value}
             </p>
-            {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
+            {subtitle && <p className="text-[11px] text-muted-foreground mt-1.5">{subtitle}</p>}
           </div>
-          <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0", iconBg)}>
-            <Icon className={cn("h-5 w-5", iconColor)} />
+          <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center shrink-0", iconBg)}>
+            <Icon className={cn("h-4.5 w-4.5", iconColor)} size={17} />
           </div>
         </div>
       </CardContent>
@@ -175,12 +185,19 @@ export default function Dashboard() {
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-display font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground mt-1">
-          {user?.fullName ? `Welcome back, ${user.fullName.split(" ")[0]}.` : "Welcome back."}{" "}
-          Here's your employer engagement overview.
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-display font-bold text-foreground">
+            {user?.fullName ? `Good ${getGreeting()}, ${user.fullName.split(" ")[0]}` : "Dashboard"}
+          </h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Here's your employer engagement overview for today.
+          </p>
+        </div>
+        <div className="text-right hidden sm:block">
+          <p className="text-[11px] text-muted-foreground uppercase tracking-wide font-semibold">{new Date().toLocaleDateString("en-GB", { weekday: "long" })}</p>
+          <p className="text-sm font-medium text-foreground">{new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</p>
+        </div>
       </div>
 
       {/* Summary cards — 6 across */}
