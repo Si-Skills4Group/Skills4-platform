@@ -325,7 +325,14 @@ export default function ContactDetail() {
 
   const deleteMutation = useDeleteContact({
     mutation: {
-      onSuccess: () => navigate("/contacts"),
+      onSuccess: (_data, variables) => {
+        queryClient.setQueriesData<Contact[]>(
+          { queryKey: ["/api/contacts"] },
+          (old) => old?.filter((c) => c.id !== variables.id) ?? old
+        );
+        queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
+        navigate("/contacts");
+      },
     },
   });
 

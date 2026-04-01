@@ -17,6 +17,7 @@ import {
   getGetEngagementQueryKey,
 } from "@workspace/api-client-react";
 import type {
+  Engagement,
   EngagementStage,
   EngagementStatus,
   TaskStatus,
@@ -434,7 +435,16 @@ export default function EngagementDetail() {
   });
 
   const deleteMutation = useDeleteEngagement({
-    mutation: { onSuccess: () => navigate("/engagements") },
+    mutation: {
+      onSuccess: (_data, variables) => {
+        queryClient.setQueriesData<Engagement[]>(
+          { queryKey: ["/api/engagements"] },
+          (old) => old?.filter((e) => e.id !== variables.id) ?? old
+        );
+        queryClient.invalidateQueries({ queryKey: ["/api/engagements"] });
+        navigate("/engagements");
+      },
+    },
   });
 
   function handleStageChange(stage: EngagementStage) {
