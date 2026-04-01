@@ -7,6 +7,17 @@ import { logActivity } from "../lib/logActivity";
 
 const router: IRouter = Router();
 
+/**
+ * markOverdueTasks — set status to "overdue" for any open/in_progress task
+ * whose due_date is before today.
+ *
+ * Called on every GET /api/tasks to keep status current without a background scheduler.
+ *
+ * D365 migration path:
+ *   Replace with a scheduled Power Automate cloud flow (e.g., daily at 00:00) that
+ *   queries all open Task activities where scheduledend < today and sets statuscode
+ *   to a custom "Overdue" status reason under the Open status.
+ */
 async function markOverdueTasks() {
   const today = new Date().toISOString().split("T")[0];
   await db

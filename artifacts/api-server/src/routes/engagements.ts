@@ -153,6 +153,9 @@ router.put("/:id", requireMinRole("engagement_user"), async (req, res) => {
       ownerName = u?.fullName ?? null;
     }
 
+    // Automation: stage_changed — log when the engagement stage moves.
+    // D365 migration: replace with a Business Process Flow stage history entry,
+    // or a Power Automate flow triggered by Opportunity.salesstage field change.
     if (body.stage && before?.stage && body.stage !== before.stage) {
       void logActivity("stage_changed", "engagement", eng.id, req.user?.id, {
         stageFrom: before.stage, stageTo: body.stage, title: eng.title, status: eng.status,
