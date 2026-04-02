@@ -148,7 +148,9 @@ const CustomHBarTooltip = ({ active, payload, label }: any) => {
 };
 
 export default function Dashboard() {
-  const { data: summary, isLoading } = useGetDashboardSummary();
+  const { data: summary, isLoading } = useGetDashboardSummary({
+    query: { refetchInterval: 30_000, staleTime: 0 },
+  });
   const { user } = useAuth();
 
   if (isLoading || !summary) {
