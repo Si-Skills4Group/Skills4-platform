@@ -382,24 +382,31 @@ export default function Dashboard() {
             ) : (
               summary.myOpenTasks.map((task) => {
                 const overdue = task.dueDate ? task.dueDate < today && task.status !== "completed" : false;
+                const href = task.engagementId
+                  ? `/engagements/${task.engagementId}`
+                  : task.organisationId
+                  ? `/organisations/${task.organisationId}`
+                  : "/tasks";
                 return (
-                  <div key={task.id} className="flex items-start gap-2.5 px-2 py-2 rounded-lg hover:bg-muted/40 transition-colors">
-                    <span className={cn("mt-1.5 w-2 h-2 rounded-full shrink-0", PRIORITY_DOT[task.priority] ?? "bg-slate-300")} />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium leading-snug truncate">{task.title}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        {task.organisationName && (
-                          <span className="text-xs text-muted-foreground truncate max-w-[120px]">{task.organisationName}</span>
-                        )}
-                        {task.dueDate && (
-                          <span className={cn("text-xs flex items-center gap-0.5", overdue ? "text-destructive font-semibold" : "text-muted-foreground")}>
-                            <Clock size={10} />
-                            {formatDate(task.dueDate)}
-                          </span>
-                        )}
+                  <Link key={task.id} href={href}>
+                    <div className="flex items-start gap-2.5 px-2 py-2 rounded-lg hover:bg-muted/40 transition-colors cursor-pointer group">
+                      <span className={cn("mt-1.5 w-2 h-2 rounded-full shrink-0", PRIORITY_DOT[task.priority] ?? "bg-slate-300")} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium leading-snug truncate group-hover:text-primary transition-colors">{task.title}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {task.organisationName && (
+                            <span className="text-xs text-muted-foreground truncate max-w-[120px]">{task.organisationName}</span>
+                          )}
+                          {task.dueDate && (
+                            <span className={cn("text-xs flex items-center gap-0.5", overdue ? "text-destructive font-semibold" : "text-muted-foreground")}>
+                              <Clock size={10} />
+                              {formatDate(task.dueDate)}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </Link>
                 );
               })
             )}
