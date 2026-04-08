@@ -720,6 +720,96 @@ async function seed() {
   ] = engagements;
   console.log(`✓ ${engagements.length} engagements`);
 
+  // ─── SDR Engagements ──────────────────────────────────────────────────────
+  const sdrEngagements = await db
+    .insert(engagementsTable)
+    .values([
+      // SDR 1 — CloudNative Labs: Researching (LinkedIn, 2 touches)
+      {
+        organisationId: cloudNative.id,
+        primaryContactId: dev.id,
+        ownerUserId: priya.id,
+        title: "CloudNative Labs — SDR Outreach",
+        stage: "lead",
+        status: "open",
+        engagementType: "sdr",
+        sdrStage: "researching",
+        leadSource: "linkedin",
+        sdrOwnerUserId: priya.id,
+        outreachChannel: "linkedin",
+        touchCount: 2,
+        meetingBooked: false,
+        lastOutreachDate: addDays(-5),
+        nextOutreachDate: addDays(3),
+        notes: "Identified via LinkedIn. Dev Chatterjee is active on skills content. Researching their hiring plans and tech stack before first outreach message.",
+      },
+      // SDR 2 — Birmingham Construction: Outreach Started (event follow-up, 4 touches)
+      {
+        organisationId: birminghamConstr.id,
+        primaryContactId: neil.id,
+        ownerUserId: james.id,
+        title: "Birmingham Construction Group — SDR Outreach",
+        stage: "lead",
+        status: "open",
+        engagementType: "sdr",
+        sdrStage: "outreach_started",
+        leadSource: "event",
+        sdrOwnerUserId: james.id,
+        outreachChannel: "email",
+        touchCount: 4,
+        meetingBooked: false,
+        lastOutreachDate: addDays(-3),
+        nextOutreachDate: addDays(4),
+        notes: "Met Neil Barker at Build UK Skills Summit. Follow-up sequence started. 2 emails sent, 1 LinkedIn message, 1 phone attempt. No response yet — try calling again.",
+      },
+      // SDR 3 — Green Energy Partners: Qualified, meeting booked, handover pending
+      {
+        organisationId: greenEnergy.id,
+        primaryContactId: tom.id,
+        ownerUserId: sarah.id,
+        title: "Green Energy Partners — SDR Qualified Lead",
+        stage: "lead",
+        status: "open",
+        engagementType: "sdr",
+        sdrStage: "qualified",
+        qualificationStatus: "qualified",
+        leadSource: "event",
+        sdrOwnerUserId: sarah.id,
+        outreachChannel: "phone",
+        touchCount: 6,
+        meetingBooked: true,
+        meetingDate: addDays(-3),
+        handoverStatus: "pending",
+        handoverOwnerUserId: james.id,
+        handoverNotes: "Qualified via 3-touch email + 2 phone calls + 1 in-person intro at West Midlands Energy Conference. Tom Ashby confirmed budget authority and appetite for L3 apprenticeships. Ready for senior engagement team to take over. Budget: ~£40k levy spend. Decision timeline: Q3 2026.",
+        lastOutreachDate: addDays(-3),
+        notes: "Strong SDR qualification. Tom confirmed: 35 employees, levy-paying, interested in green skills and sustainability apprenticeships. Pain point is skills gap in renewable engineering.",
+      },
+      // SDR 4 — Startup Collective: Nurture (funding fell through, low priority)
+      {
+        organisationId: startupCollective.id,
+        primaryContactId: zain.id,
+        ownerUserId: james.id,
+        title: "Startup Collective — SDR Nurture",
+        stage: "dormant",
+        status: "on_hold",
+        engagementType: "sdr",
+        sdrStage: "nurture",
+        leadSource: "referral",
+        sdrOwnerUserId: james.id,
+        outreachChannel: "email",
+        touchCount: 3,
+        meetingBooked: false,
+        lastOutreachDate: addDays(-45),
+        nextOutreachDate: addDays(75),
+        notes: "Seed funding fell through in Jan 2026. Zain responsive but business paused. Moved to nurture — check in quarterly. Potential when they raise Series A.",
+      },
+    ])
+    .returning();
+
+  const [sdrCloudNative, sdrBirmingham, sdrGreenEnergy, sdrStartup] = sdrEngagements;
+  console.log(`✓ ${sdrEngagements.length} SDR engagements`);
+
   // ─── Tasks (D365: Task / Activity) ───────────────────────────────────────
   await db.insert(tasksTable).values([
     // 1 — TechCorp: Send updated proposal (open, high, due +5)
@@ -920,9 +1010,42 @@ async function seed() {
       priority: "medium",
       status: "completed",
     },
+    // 19 — SDR: CloudNative — Send LinkedIn connection request (open, medium, +3)
+    {
+      organisationId: cloudNative.id,
+      engagementId: sdrCloudNative.id,
+      assignedUserId: priya.id,
+      title: "Send personalised LinkedIn message to Dev Chatterjee",
+      description: "Reference the skills gap article he shared last week. Keep it short — no pitch in first message. Goal: connection and brief reply.",
+      dueDate: addDays(3),
+      priority: "medium",
+      status: "open",
+    },
+    // 20 — SDR: Birmingham Construction — Phone follow-up (open, high, +4)
+    {
+      organisationId: birminghamConstr.id,
+      engagementId: sdrBirmingham.id,
+      assignedUserId: james.id,
+      title: "Phone follow-up with Neil Barker — 4th touch",
+      description: "4 emails/messages sent with no reply. Try direct dial. Reference Build UK Summit and T-Level Construction placement opportunity. Target: 15-min discovery call.",
+      dueDate: addDays(4),
+      priority: "high",
+      status: "open",
+    },
+    // 21 — SDR: Green Energy — Handover briefing with James Okafor (open, high, +2)
+    {
+      organisationId: greenEnergy.id,
+      engagementId: sdrGreenEnergy.id,
+      assignedUserId: sarah.id,
+      title: "SDR handover briefing — hand Green Energy Partners to James Okafor",
+      description: "Walk James through the qualification notes and Tom Ashby's confirmed interests before he picks up the engagement. Share discovery call recording.",
+      dueDate: addDays(2),
+      priority: "high",
+      status: "open",
+    },
   ]);
 
-  console.log("✓ 18 tasks");
+  console.log("✓ 21 tasks");
   console.log("\n✅ Seed complete! Demo dataset loaded.");
   console.log("\nDemo login accounts:");
   console.log("  admin@company.com    / Admin123!     (Admin — Sarah Mitchell)");

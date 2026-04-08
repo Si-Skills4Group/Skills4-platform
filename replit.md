@@ -61,6 +61,40 @@ The CRM has 5 core modules, all mapped to future Dynamics 365 entities:
 - `/tasks` — Task list with 5 views (All, My Tasks, Overdue, Due This Week, Completed), search + priority filter, mark-complete checkbox, create/edit/delete, status & priority badges, linked to org/engagement with navigation links; "Create Task" button on engagement detail's next-action banner pre-fills title and due date automatically
 - `/settings` — User profile settings
 
+## SDR (Sales Development Representative) Data Model
+
+The Engagement entity has been extended with 15 SDR-specific fields to support an SDR workflow alongside the existing Employer and Provider Engagement workflows.
+
+### engagement_type
+`sdr` | `employer_engagement` | `provider_engagement` — defaults to `employer_engagement`. All 15 existing engagements retain the default. 4 new demo SDR engagements seeded.
+
+### SDR-specific fields on `engagements` table
+| Field | Type | Description |
+|---|---|---|
+| `engagement_type` | text NOT NULL default 'employer_engagement' | SDR \| employer_engagement \| provider_engagement |
+| `sdr_stage` | text nullable | new \| researching \| outreach_started \| contacted \| response_received \| meeting_booked \| qualified \| disqualified \| nurture |
+| `qualification_status` | text nullable | Free-text qualification status |
+| `lead_source` | text nullable | linkedin \| event \| referral \| inbound \| cold_list \| etc. |
+| `sdr_owner_user_id` | integer FK → users | SDR owner (separate from account owner) |
+| `last_outreach_date` | text (ISO date) nullable | Date of last outreach touch |
+| `next_outreach_date` | text (ISO date) nullable | Scheduled next outreach |
+| `outreach_channel` | text nullable | email \| phone \| linkedin \| in_person \| event |
+| `touch_count` | integer NOT NULL default 0 | Number of outreach touches made |
+| `meeting_booked` | boolean NOT NULL default false | Whether a discovery meeting has been booked |
+| `meeting_date` | text (ISO date) nullable | Date of the booked meeting |
+| `disqualification_reason` | text nullable | Reason for disqualification |
+| `handover_status` | text nullable | pending \| in_progress \| complete |
+| `handover_owner_user_id` | integer FK → users | Engagement team owner receiving the handover |
+| `handover_notes` | text nullable | SDR handover briefing notes |
+
+### Indexes added
+`engagements_engagement_type_idx`, `engagements_sdr_stage_idx`, `engagements_sdr_owner_user_id_idx`, `engagements_handover_owner_user_id_idx`
+
+### Seed data
+15 existing engagements: `engagement_type = 'employer_engagement'` (unchanged)
+4 SDR demo engagements (IDs 16–19): CloudNative (researching), Birmingham Construction (outreach_started), Green Energy (qualified + handover pending), Startup Collective (nurture)
+21 tasks total (18 existing + 3 SDR tasks)
+
 ## API Routes
 
 All routes under `/api/`:
