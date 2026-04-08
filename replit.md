@@ -1,296 +1,91 @@
-# Workspace
+# Overview
 
-## Overview
+This project is a pnpm workspace monorepo using TypeScript, designed as an internal employer engagement CRM MVP. Its primary purpose is to validate workflow and user experience before a full implementation with Dynamics 365 / Dataverse. The CRM facilitates the management of organisations, contacts, engagements, and tasks, with a focus on streamlining employer engagement processes. It includes an extended data model to support Sales Development Representative (SDR) workflows.
 
-pnpm workspace monorepo using TypeScript. This is an internal employer engagement CRM MVP — a lightweight tool to validate workflow and UX before a Dynamics 365 / Dataverse implementation.
+# User Preferences
 
-## Stack
+I prefer concise and clear communication. I appreciate detailed explanations when introducing new concepts or significant changes. When making changes to the codebase, please prioritize an iterative approach, proposing small, focused modifications. Please ask for my approval before implementing any major architectural changes or introducing new external dependencies. Do not make changes to the `artifacts/api-server/src/lib/auth.ts` file or the `artifacts/crm/src/contexts/AuthContext.tsx` file without explicit instruction.
 
-- **Monorepo tool**: pnpm workspaces
-- **Node.js version**: 24
-- **Package manager**: pnpm
-- **TypeScript version**: 5.9
-- **Frontend**: React 18 + Vite + TailwindCSS + Wouter (routing) + React Query
-- **API framework**: Express 5
-- **Database**: PostgreSQL + Drizzle ORM
-- **Validation**: Zod (`zod/v4`), `drizzle-zod`
-- **API codegen**: Orval (from OpenAPI spec)
-- **Build**: esbuild (CJS bundle)
-- **Charts**: Recharts
-- **Forms**: React Hook Form + Zod
+# System Architecture
 
-## Structure
+The project is structured as a pnpm monorepo.
 
-```text
-artifacts-monorepo/
-├── artifacts/
-│   ├── api-server/         # Express API server (routes for all CRM modules)
-│   └── crm/               # React + Vite CRM frontend (employer engagement CRM)
-├── lib/
-│   ├── api-spec/           # OpenAPI spec + Orval codegen config
-│   ├── api-client-react/   # Generated React Query hooks
-│   ├── api-zod/            # Generated Zod schemas from OpenAPI
-│   └── db/                 # Drizzle ORM schema + DB connection
-├── scripts/
-│   └── src/seed.ts        # Seed script for example data
-├── pnpm-workspace.yaml
-├── tsconfig.base.json
-├── tsconfig.json
-└── package.json
-```
+**Technology Stack:**
+- **Monorepo:** pnpm workspaces
+- **Frontend:** React 18, Vite, TailwindCSS, Wouter (routing), React Query
+- **Backend API:** Express 5
+- **Database:** PostgreSQL with Drizzle ORM
+- **Validation:** Zod (`zod/v4`), `drizzle-zod`
+- **API Codegen:** Orval (from OpenAPI spec)
+- **Charts:** Recharts
+- **Forms:** React Hook Form + Zod
+- **Build:** esbuild (CJS bundle)
+- **TypeScript:** 5.9
+- **Node.js:** 24
 
-## CRM Modules
+**Monorepo Structure:**
+- `artifacts/api-server/`: Express API server for all CRM modules.
+- `artifacts/crm/`: React + Vite frontend for the employer engagement CRM.
+- `lib/api-spec/`: OpenAPI specification and Orval codegen configuration.
+- `lib/api-client-react/`: Generated React Query hooks.
+- `lib/api-zod/`: Generated Zod schemas from OpenAPI.
+- `lib/db/`: Drizzle ORM schema and database connection.
+- `scripts/`: Contains seed data scripts.
 
-The CRM has 5 core modules, all mapped to future Dynamics 365 entities:
+**CRM Modules & Features:**
+The CRM encompasses six core modules: Organisations, Contacts, Engagements, Tasks, Dashboard, and SDR Queue, all designed to map to future Dynamics 365 entities.
 
-| CRM Module    | D365 Mapping              | Table              |
-|---------------|---------------------------|--------------------|
-| Organisations | Account                   | organisations      |
-| Contacts      | Contact                   | contacts           |
-| Engagements   | Opportunity/Custom Entity | engagements        |
-| Tasks         | Activity/Task             | tasks              |
-| Dashboard     | —                         | (aggregated views) |
+**Frontend Pages:**
+- **Dashboard (`/`):** Displays summary statistics, three types of charts (Engagement Pipeline, Tasks by Status, Organisations by Type), and sections for "My Open Tasks," "Recent Organisations," and "Upcoming Next Actions."
+- **Organisations (`/organisations`):** List view with search and filters, forms for creation/editing, a detail view with linked engagements, contacts, tasks, and notes. Includes quick-create modals.
+- **Contacts (`/contacts`):** List view with search, forms for creation/editing/deletion with email validation, and a detail view with linked engagements and tasks.
+- **Engagements (`/engagements`):** Kanban and table views with HTML5 drag-and-drop, 7 stages, overdue highlighting, search/status filters, and CRUD operations. Detail page (`/engagements/:id`) features a stage stepper, stat cards, task section, and notes.
+- **Tasks (`/tasks`):** Five distinct views (All, My Tasks, Overdue, Due This Week, Completed), search, priority filter, mark-complete functionality, CRUD operations, and navigation links to related entities.
+- **SDR Queue (`/sdr`):** Dedicated SDR prospect pipeline table with stage badges, overdue highlighting (amber rows), filter bar (stage/owner/source/overdue/search), and per-row quick actions: Log Outreach (channel picker dropdown), Change Stage modal, Mark Meeting Booked modal, Mark Qualified (confirm), Mark Disqualified (reason modal), Create Follow-up Task modal.
+- **Settings (`/settings`):** User profile settings.
 
-## CRM Frontend Pages
+**SDR Data Model Extension:**
+The `Engagement` entity is extended with 15 SDR-specific fields to support an SDR workflow, including `engagement_type`, `sdr_stage`, `qualification_status`, `lead_source`, `sdr_owner_user_id`, and various outreach-related fields.
 
-- `/` — Dashboard: 6 summary stat cards (Total Orgs, Active Orgs, Open Engagements, Won, Open Tasks, Overdue Tasks); 3 charts (Engagement Pipeline bar, Tasks by Status donut, Organisations by Type horizontal bar); 3 bottom sections (My Open Tasks, Recent Organisations, Upcoming Next Actions with deep links)
-- `/organisations` — Organisation list with search + filters (type/sector/region/status); Create/Edit forms; Detail view with linked engagements, contacts, tasks, notes; Quick-create modals for contact/engagement/task
-- `/contacts` — Contact list with search (name/email/job title) + org filter; Create/Edit/Delete with email validation; Detail view with linked engagements (where primary contact), organisation tasks, add task modal
-- `/engagements` — Engagement pipeline (kanban + table view, HTML5 drag-and-drop, 7 stages, overdue highlighting, search/status filter, create/edit/delete); Detail page at `/engagements/:id` (stage stepper, stats cards, tasks section, notes, add task modal)
-- `/engagements/:id` — Engagement detail: stage pipeline stepper (clickable), next-action alert (overdue highlighted), stat cards (value/learners/probability/open tasks), details card, linked tasks table, notes, edit/delete modals; React Query cache updated immediately via `setQueryData` on mutation success
-- `/tasks` — Task list with 5 views (All, My Tasks, Overdue, Due This Week, Completed), search + priority filter, mark-complete checkbox, create/edit/delete, status & priority badges, linked to org/engagement with navigation links; "Create Task" button on engagement detail's next-action banner pre-fills title and due date automatically
-- `/settings` — User profile settings
+**API Routes:**
+All API routes are prefixed with `/api/` and follow RESTful conventions for CRUD operations on Organisations, Contacts, Engagements, and Tasks. Additional routes exist for activity logs and dashboard summaries.
 
-## SDR (Sales Development Representative) Data Model
+**Authentication & RBAC:**
+- **Strategy:** Local JWT for MVP, designed for future migration to Entra ID (Microsoft SSO).
+- **Backend:** `bcryptjs` for password hashing and `jsonwebtoken` for 7-day tokens.
+- **Frontend:** Token storage in `localStorage`, `setAuthTokenGetter` for API calls.
+- **Middleware:** `authenticate.ts` (JWT verification) and `requireMinRole.ts` (RBAC guard).
+- **Role Hierarchy:** `admin` (Level 4, full CRUD + user management), `crm_manager` (Level 3, full CRUD), `engagement_user` (Level 2, create + edit, no delete), `read_only` (Level 1, view only).
+- **Entra ID Migration Path:** Outlined steps for integrating `passport-azure-ad` for Microsoft SSO.
 
-The Engagement entity has been extended with 15 SDR-specific fields to support an SDR workflow alongside the existing Employer and Provider Engagement workflows.
+**Database Schema:**
+Located in `lib/db/src/schema/`, with Drizzle ORM. Schemas include:
+- `users`: Stores user information (id, full_name, email, role, is_active).
+- `organisations`: Stores organisation details (id, name, type, sector, region, status, owner_user_id).
+- `contacts`: Stores contact details (id, organisation_id, first_name, last_name, job_title, email, phone).
+- `engagements`: Stores engagement details (id, organisation_id, primary_contact_id, owner_user_id, title, stage, status, SDR-specific fields).
+- `tasks`: Stores task details (id, organisation_id, engagement_id, assigned_user_id, title, description, due_date).
+- `activityLog`: Records system events (event_type, entity_type, entity_id, actor_user_id, metadata).
 
-### engagement_type
-`sdr` | `employer_engagement` | `provider_engagement` — defaults to `employer_engagement`. All 15 existing engagements retain the default. 4 new demo SDR engagements seeded.
+**Indexing:** All foreign key columns are indexed, along with specific fields in `users`, `organisations`, `contacts`, `engagements`, and `tasks` for performance.
 
-### SDR-specific fields on `engagements` table
-| Field | Type | Description |
-|---|---|---|
-| `engagement_type` | text NOT NULL default 'employer_engagement' | SDR \| employer_engagement \| provider_engagement |
-| `sdr_stage` | text nullable | new \| researching \| outreach_started \| contacted \| response_received \| meeting_booked \| qualified \| disqualified \| nurture |
-| `qualification_status` | text nullable | Free-text qualification status |
-| `lead_source` | text nullable | linkedin \| event \| referral \| inbound \| cold_list \| etc. |
-| `sdr_owner_user_id` | integer FK → users | SDR owner (separate from account owner) |
-| `last_outreach_date` | text (ISO date) nullable | Date of last outreach touch |
-| `next_outreach_date` | text (ISO date) nullable | Scheduled next outreach |
-| `outreach_channel` | text nullable | email \| phone \| linkedin \| in_person \| event |
-| `touch_count` | integer NOT NULL default 0 | Number of outreach touches made |
-| `meeting_booked` | boolean NOT NULL default false | Whether a discovery meeting has been booked |
-| `meeting_date` | text (ISO date) nullable | Date of the booked meeting |
-| `disqualification_reason` | text nullable | Reason for disqualification |
-| `handover_status` | text nullable | pending \| in_progress \| complete |
-| `handover_owner_user_id` | integer FK → users | Engagement team owner receiving the handover |
-| `handover_notes` | text nullable | SDR handover briefing notes |
+**TypeScript & Composite Projects:**
+Each package extends a base `tsconfig.base.json` with `composite: true`, and the root `tsconfig.json` lists all packages as project references.
 
-### Indexes added
-`engagements_engagement_type_idx`, `engagements_sdr_stage_idx`, `engagements_sdr_owner_user_id_idx`, `engagements_handover_owner_user_id_idx`
+# External Dependencies
 
-### Seed data
-15 existing engagements: `engagement_type = 'employer_engagement'` (unchanged)
-4 SDR demo engagements (IDs 16–19): CloudNative (researching), Birmingham Construction (outreach_started), Green Energy (qualified + handover pending), Startup Collective (nurture)
-21 tasks total (18 existing + 3 SDR tasks)
-
-## API Routes
-
-All routes under `/api/`:
-- `GET/POST /organisations` — list / create
-- `GET/PUT/DELETE /organisations/:id` — detail / update / delete
-- `GET/POST /contacts` — list / create
-- `GET/PUT/DELETE /contacts/:id` — detail / update / delete
-- `GET/POST /engagements` — list / create (supports kanban stage filter)
-- `GET/PUT/DELETE /engagements/:id` — detail / update / delete
-- `GET/POST /tasks` — list / create (supports status/priority filters)
-- `GET/PUT/DELETE /tasks/:id` — detail / update / delete
-- `GET /activity?entityType=X&entityId=Y` — activity log entries for a record
-- `GET /dashboard/summary` — aggregated stats for dashboard
-
-## Authentication & RBAC
-
-### Strategy: Local JWT (MVP) — Entra ID ready
-- **Backend:** `bcryptjs` (password hashing) + `jsonwebtoken` (7-day tokens)
-- **Frontend:** Token stored in `localStorage`; `setAuthTokenGetter` wires it into all API calls
-- **Middleware chain:** `authenticate.ts` (JWT verify) → `requireMinRole.ts` (RBAC guard)
-
-### Role Hierarchy
-| Role | Level | Permissions |
-|---|---|---|
-| `admin` | 4 | Full CRUD + user management |
-| `crm_manager` | 3 | Full CRUD on all entities |
-| `engagement_user` | 2 | Create + edit; **no delete** |
-| `read_only` | 1 | View only |
-
-Route-level guards: POST/PUT → `requireMinRole("engagement_user")`, DELETE → `requireMinRole("crm_manager")`
-
-### Entra ID / Microsoft SSO Migration Path
-1. Install `passport-azure-ad` (`BearerStrategy`)
-2. Replace `signToken`/`verifyToken` in `lib/auth.ts` with passport strategy
-3. `authenticate.ts` middleware interface stays unchanged — no route changes needed
-4. Remove `password_hash` from `users` table; map OID → user record on first login
-5. Role field maps to D365 Security Roles
-
-### Auth Files
-- `artifacts/api-server/src/lib/auth.ts` — JWT helpers + migration comments
-- `artifacts/api-server/src/middlewares/authenticate.ts` — JWT verification
-- `artifacts/api-server/src/middlewares/requireRole.ts` — RBAC guards
-- `artifacts/api-server/src/routes/auth.ts` — POST /auth/login, GET /auth/me
-- `artifacts/crm/src/contexts/AuthContext.tsx` — React auth state
-- `artifacts/crm/src/hooks/usePermissions.ts` — UI permission helpers
-- `artifacts/crm/src/components/auth/ProtectedRoute.tsx` — route guard
-- `artifacts/crm/src/pages/Login.tsx` — login page with demo account picker
-
-### Demo Accounts
-| Email | Password | Role |
-|---|---|---|
-| admin@company.com | Admin123! | Admin |
-| manager@company.com | Manager123! | CRM Manager |
-| user@company.com | User123! | Engagement User |
-| readonly@company.com | ReadOnly123! | Read Only |
-
-## Database Schema
-
-Located in `lib/db/src/schema/`. Each file contains D365 field-mapping comments at the top.
-
-### `users.ts` — User (D365: SystemUser)
-| Column | Type | Notes |
-|---|---|---|
-| id | serial PK | |
-| full_name | text | D365: fullname |
-| email | text UNIQUE | D365: internalemailaddress |
-| role | text | admin / user |
-| is_active | boolean | D365: isdisabled (inverted) |
-| created_at / updated_at | timestamp | |
-
-### `organisations.ts` — Organisation (D365: Account)
-| Column | Type | Notes |
-|---|---|---|
-| id | serial PK | |
-| name | text | D365: name |
-| type | text | employer / training_provider / partner → customertypecode |
-| sector | text | D365: industrycode |
-| region | text | D365: address1_stateorprovince |
-| status | text | prospect / active / dormant / closed → statuscode |
-| owner_user_id | int FK → users | D365: ownerid |
-| website / phone / notes | text | |
-
-### `contacts.ts` — Contact (D365: Contact)
-| Column | Type | Notes |
-|---|---|---|
-| id | serial PK | |
-| organisation_id | int FK → organisations | D365: parentcustomerid |
-| first_name / last_name | text | D365: firstname / lastname |
-| job_title | text | D365: jobtitle |
-| email / phone | text | D365: emailaddress1 / telephone1 |
-| preferred_contact_method | text | email / phone / post / no_preference → preferredcontactmethodcode |
-| notes | text | D365: description |
-
-### `engagements.ts` — Engagement (D365: Opportunity)
-| Column | Type | Notes |
-|---|---|---|
-| id | serial PK | |
-| organisation_id | int FK → organisations | D365: customerid |
-| primary_contact_id | int FK → contacts | D365: parentcontactid |
-| owner_user_id | int FK → users | D365: ownerid |
-| title | text | D365: name |
-| stage | text | lead / contacted / meeting_booked / proposal / active / won / dormant |
-| status | text | open / closed_won / closed_lost / on_hold → statuscode |
-| expected_learner_volume | int | D365: custom crm_expectedlearnervolume |
-| expected_value | numeric | D365: estimatedvalue |
-| probability | int | D365: closeprobability |
-| last_contact_date | text | D365: custom crm_lastcontactdate |
-| next_action_date | text | D365: custom crm_nextactiondate |
-| next_action_note | text | D365: custom crm_nextactionnote |
-| notes | text | D365: description |
-
-### `tasks.ts` — Task (D365: Task / Activity)
-| Column | Type | Notes |
-|---|---|---|
-| id | serial PK | |
-| organisation_id | int FK → organisations | D365: regardingobjectid (Account) |
-| engagement_id | int FK → engagements | D365: regardingobjectid (Opportunity) |
-| assigned_user_id | int FK → users | D365: ownerid |
-| title | text | D365: subject |
-| description | text | D365: description |
-| due_date | text | D365: scheduledend |
-| priority | text | low / medium / high → prioritycode |
-| status | text | open / in_progress / completed / overdue → statuscode |
-
-### `activityLog.ts` — Activity Log (D365: Audit)
-| Column | Type | Notes |
-|---|---|---|
-| id | serial PK | |
-| event_type | text | org_created / contact_added / engagement_created / stage_changed / task_completed |
-| entity_type | text | organisation / contact / engagement / task |
-| entity_id | int | FK to the related entity (no hard constraint) |
-| actor_user_id | int FK → users | who triggered the event |
-| metadata | jsonb | event-specific data (e.g. fromStage, toStage, contactName, engagementTitle) |
-| created_at | timestamp | |
-
-Activity events are logged server-side by `logActivity()` and cross-posted to related entities (e.g. a contact_added event is logged for both `contact` and `organisation`). The `ActivityFeed` component in the CRM renders these per entity.
-
-## Indexes
-
-All FK columns are indexed. Additional indexes:
-- `users`: email (unique), is_active
-- `organisations`: name, status, type, sector, region, owner_user_id
-- `contacts`: organisation_id, last_name, email
-- `engagements`: organisation_id, stage, status, owner_user_id, next_action_date
-- `tasks`: organisation_id, engagement_id, assigned_user_id, status, priority, due_date
-
-## Seeding
-
-Run seed data (4 users, 12 orgs, 20 contacts, 15 engagements, 18 tasks):
-```bash
-pnpm --filter @workspace/scripts run seed
-```
-
-### Demo Dataset Story
-The dataset represents a FE college employer engagement team ("SkillsBridge Midlands") managing apprenticeships and T-Level placements across the West and East Midlands:
-
-**12 Organisations** — 8 employers (TechCorp, Midlands Manufacturing, Retail Horizons, HealthFirst NHS Trust, West Midlands Combined Authority, Apex Financial Services, CloudNative Labs, Birmingham Construction, Oakwood Care Group), 1 training provider (Midlands Training Alliance), 1 partner (WMCA), 1 dormant (Startup Collective), 1 prospect (Green Energy Partners).
-
-**20 Contacts** — 2–3 per org with realistic job titles (Head of HR, Early Careers Manager, Workforce Development Director, Director of Workforce Planning, Partnerships Director, etc.).
-
-**15 Engagements** — across all 7 stages. 2 Closed Won (TechCorp Guest Lectures, Retail Horizons Mentoring), 3 Active (MTA T-Level, WMCA Leadership, Oakwood Care Leadership), 3 Proposals (TechCorp Digital, Retail Management, Apex Financial), 2 Meeting Booked, 2 Contacted, 2 Lead, 1 Dormant.
-
-**18 Tasks** — realistic mix: 3 explicitly overdue (chasing overdue documents/approvals), 3 in-progress (legal reviews, proposals), 11 open (upcoming calls, visits, research), 2 completed (closed-won follow-ups).
-
-## TypeScript & Composite Projects
-
-Every package extends `tsconfig.base.json` which sets `composite: true`. The root `tsconfig.json` lists all packages as project references.
-
-## Root Scripts
-
-- `pnpm run build` — runs `typecheck` first, then recursively runs `build` in all packages
-- `pnpm run typecheck` — runs `tsc --build --emitDeclarationOnly` using project references
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate React Query hooks + Zod schemas
-
-## Packages
-
-### `artifacts/crm` (`@workspace/crm`)
-
-React + Vite frontend CRM app. All pages and components live in `src/`. 
-- `src/pages/` — Dashboard, Organisations, Contacts, Engagements, Tasks, Settings
-- `src/components/layout/AppLayout.tsx` — Sidebar navigation
-- `src/components/ui/core-ui.tsx` — Shared UI component library (Button, Input, Card, Table, Badge, Label, etc.)
-
-### `artifacts/api-server` (`@workspace/api-server`)
-
-Express 5 API server. Routes live in `src/routes/`.
-- `src/routes/organisations.ts` — Org CRUD
-- `src/routes/contacts.ts` — Contact CRUD  
-- `src/routes/engagements.ts` — Engagement CRUD
-- `src/routes/tasks.ts` — Task CRUD
-- `src/routes/dashboard.ts` — Dashboard summary
-- `src/routes/activityLog.ts` — `GET /api/activity?entityType&entityId`
-- `src/lib/logActivity.ts` — `logActivity()` helper (inserts to activity_log; auto cross-posts to related entities)
-
-### `lib/db` (`@workspace/db`)
-
-Database layer using Drizzle ORM with PostgreSQL.
-- `pnpm --filter @workspace/db run push` — push schema to DB
-- `pnpm --filter @workspace/db run push-force` — force push (resets columns)
+- **PostgreSQL:** Primary database for data storage.
+- **Drizzle ORM:** Object-relational mapper for database interaction.
+- **Orval:** API client code generation from OpenAPI specifications.
+- **React Query:** Data fetching and caching for the frontend.
+- **Recharts:** Charting library for data visualization in the dashboard.
+- **TailwindCSS:** Utility-first CSS framework for styling.
+- **Wouter:** Lightweight React router.
+- **Express:** Web application framework for the API server.
+- **Zod:** TypeScript-first schema declaration and validation library.
+- **React Hook Form:** Form management library for React.
+- **jsonwebtoken:** For generating and verifying JWTs in the API.
+- **bcryptjs:** For hashing user passwords.
+- **pnpm:** Package manager and monorepo tool.
+- **Vite:** Frontend build tool.
+- **esbuild:** Bundler for the API server.

@@ -368,6 +368,14 @@ paths:
           in: query
           schema:
             type: integer
+        - name: engagementType
+          in: query
+          schema:
+            type: string
+        - name: sdrOwnerUserId
+          in: query
+          schema:
+            type: integer
       responses:
         "200":
           description: List of engagements
@@ -873,6 +881,22 @@ components:
       type: string
       enum: [open, closed_won, closed_lost, on_hold]
 
+    EngagementType:
+      type: string
+      enum: [sdr, employer_engagement, provider_engagement]
+
+    SdrStage:
+      type: string
+      enum: [new, researching, outreach_started, contacted, response_received, meeting_booked, qualified, disqualified, nurture]
+
+    OutreachChannel:
+      type: string
+      enum: [email, phone, linkedin, in_person, event]
+
+    HandoverStatus:
+      type: string
+      enum: [pending, in_progress, complete]
+
     Engagement:
       type: object
       properties:
@@ -923,11 +947,59 @@ components:
         notes:
           type: string
           nullable: true
+        engagementType:
+          $ref: "#/components/schemas/EngagementType"
+        sdrStage:
+          $ref: "#/components/schemas/SdrStage"
+          nullable: true
+        qualificationStatus:
+          type: string
+          nullable: true
+        leadSource:
+          type: string
+          nullable: true
+        sdrOwnerUserId:
+          type: integer
+          nullable: true
+        sdrOwnerName:
+          type: string
+          nullable: true
+        lastOutreachDate:
+          type: string
+          nullable: true
+        nextOutreachDate:
+          type: string
+          nullable: true
+        outreachChannel:
+          $ref: "#/components/schemas/OutreachChannel"
+          nullable: true
+        touchCount:
+          type: integer
+        meetingBooked:
+          type: boolean
+        meetingDate:
+          type: string
+          nullable: true
+        disqualificationReason:
+          type: string
+          nullable: true
+        handoverStatus:
+          $ref: "#/components/schemas/HandoverStatus"
+          nullable: true
+        handoverOwnerUserId:
+          type: integer
+          nullable: true
+        handoverOwnerName:
+          type: string
+          nullable: true
+        handoverNotes:
+          type: string
+          nullable: true
         createdAt:
           type: string
         updatedAt:
           type: string
-      required: [id, title, stage, status, createdAt, updatedAt]
+      required: [id, title, stage, status, engagementType, touchCount, meetingBooked, createdAt, updatedAt]
 
     CreateEngagementRequest:
       type: object
@@ -966,6 +1038,48 @@ components:
           type: string
           nullable: true
         notes:
+          type: string
+          nullable: true
+        engagementType:
+          $ref: "#/components/schemas/EngagementType"
+        sdrStage:
+          $ref: "#/components/schemas/SdrStage"
+          nullable: true
+        qualificationStatus:
+          type: string
+          nullable: true
+        leadSource:
+          type: string
+          nullable: true
+        sdrOwnerUserId:
+          type: integer
+          nullable: true
+        lastOutreachDate:
+          type: string
+          nullable: true
+        nextOutreachDate:
+          type: string
+          nullable: true
+        outreachChannel:
+          $ref: "#/components/schemas/OutreachChannel"
+          nullable: true
+        touchCount:
+          type: integer
+        meetingBooked:
+          type: boolean
+        meetingDate:
+          type: string
+          nullable: true
+        disqualificationReason:
+          type: string
+          nullable: true
+        handoverStatus:
+          $ref: "#/components/schemas/HandoverStatus"
+          nullable: true
+        handoverOwnerUserId:
+          type: integer
+          nullable: true
+        handoverNotes:
           type: string
           nullable: true
       required: [title, stage, status]
@@ -1007,6 +1121,48 @@ components:
           type: string
           nullable: true
         notes:
+          type: string
+          nullable: true
+        engagementType:
+          $ref: "#/components/schemas/EngagementType"
+        sdrStage:
+          $ref: "#/components/schemas/SdrStage"
+          nullable: true
+        qualificationStatus:
+          type: string
+          nullable: true
+        leadSource:
+          type: string
+          nullable: true
+        sdrOwnerUserId:
+          type: integer
+          nullable: true
+        lastOutreachDate:
+          type: string
+          nullable: true
+        nextOutreachDate:
+          type: string
+          nullable: true
+        outreachChannel:
+          $ref: "#/components/schemas/OutreachChannel"
+          nullable: true
+        touchCount:
+          type: integer
+        meetingBooked:
+          type: boolean
+        meetingDate:
+          type: string
+          nullable: true
+        disqualificationReason:
+          type: string
+          nullable: true
+        handoverStatus:
+          $ref: "#/components/schemas/HandoverStatus"
+          nullable: true
+        handoverOwnerUserId:
+          type: integer
+          nullable: true
+        handoverNotes:
           type: string
           nullable: true
 

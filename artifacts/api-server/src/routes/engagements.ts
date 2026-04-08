@@ -2,16 +2,22 @@ import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { engagementsTable, organisationsTable, contactsTable, usersTable } from "@workspace/db/schema";
 import { eq, ilike, and, or } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { requireMinRole } from "../middlewares/requireRole";
 import { logActivity } from "../lib/logActivity";
 
 const router: IRouter = Router();
 
+const sdrOwnerTable = alias(usersTable, "sdr_owner");
+const handoverOwnerTable = alias(usersTable, "handover_owner");
+
 function format(
   eng: typeof engagementsTable.$inferSelect,
   orgName?: string | null,
   contactName?: string | null,
-  ownerName?: string | null
+  ownerName?: string | null,
+  sdrOwnerName?: string | null,
+  handoverOwnerName?: string | null
 ) {
   return {
     ...eng,
@@ -19,6 +25,8 @@ function format(
     organisationName: orgName ?? null,
     contactName: contactName ?? null,
     ownerName: ownerName ?? null,
+    sdrOwnerName: sdrOwnerName ?? null,
+    handoverOwnerName: handoverOwnerName ?? null,
     createdAt: eng.createdAt.toISOString(),
     updatedAt: eng.updatedAt.toISOString(),
   };
@@ -26,12 +34,15 @@ function format(
 
 router.get("/", async (req, res) => {
   try {
-    const { search, stage, status, organisationId } = req.query as Record<string, string>;
+    const { search, stage, status, organisationId, engagementType, sdrOwnerUserId } =
+      req.query as Record<string, string>;
     const conditions = [];
     if (search) conditions.push(or(ilike(engagementsTable.title, `%${search}%`), ilike(engagementsTable.notes, `%${search}%`)));
     if (stage) conditions.push(eq(engagementsTable.stage, stage));
     if (status) conditions.push(eq(engagementsTable.status, status));
     if (organisationId) conditions.push(eq(engagementsTable.organisationId, Number(organisationId)));
+    if (engagementType) conditions.push(eq(engagementsTable.engagementType, engagementType));
+    if (sdrOwnerUserId) conditions.push(eq(engagementsTable.sdrOwnerUserId, Number(sdrOwnerUserId)));
 
     const rows = await db
       .select({
@@ -40,11 +51,15 @@ router.get("/", async (req, res) => {
         contactFirstName: contactsTable.firstName,
         contactLastName: contactsTable.lastName,
         ownerFullName: usersTable.fullName,
+        sdrOwnerFullName: sdrOwnerTable.fullName,
+        handoverOwnerFullName: handoverOwnerTable.fullName,
       })
       .from(engagementsTable)
       .leftJoin(organisationsTable, eq(engagementsTable.organisationId, organisationsTable.id))
       .leftJoin(contactsTable, eq(engagementsTable.primaryContactId, contactsTable.id))
       .leftJoin(usersTable, eq(engagementsTable.ownerUserId, usersTable.id))
+      .leftJoin(sdrOwnerTable, eq(engagementsTable.sdrOwnerUserId, sdrOwnerTable.id))
+      .leftJoin(handoverOwnerTable, eq(engagementsTable.handoverOwnerUserId, handoverOwnerTable.id))
       .where(conditions.length ? and(...conditions) : undefined)
       .orderBy(engagementsTable.updatedAt);
 
@@ -54,7 +69,9 @@ router.get("/", async (req, res) => {
           r.engagement,
           r.orgName,
           r.contactFirstName && r.contactLastName ? `${r.contactFirstName} ${r.contactLastName}` : null,
-          r.ownerFullName
+          r.ownerFullName,
+          r.sdrOwnerFullName,
+          r.handoverOwnerFullName
         )
       )
     );
@@ -73,11 +90,15 @@ router.get("/:id", async (req, res) => {
         contactFirstName: contactsTable.firstName,
         contactLastName: contactsTable.lastName,
         ownerFullName: usersTable.fullName,
+        sdrOwnerFullName: sdrOwnerTable.fullName,
+        handoverOwnerFullName: handoverOwnerTable.fullName,
       })
       .from(engagementsTable)
       .leftJoin(organisationsTable, eq(engagementsTable.organisationId, organisationsTable.id))
       .leftJoin(contactsTable, eq(engagementsTable.primaryContactId, contactsTable.id))
       .leftJoin(usersTable, eq(engagementsTable.ownerUserId, usersTable.id))
+      .leftJoin(sdrOwnerTable, eq(engagementsTable.sdrOwnerUserId, sdrOwnerTable.id))
+      .leftJoin(handoverOwnerTable, eq(engagementsTable.handoverOwnerUserId, handoverOwnerTable.id))
       .where(eq(engagementsTable.id, Number(req.params.id)));
 
     if (!row) return res.status(404).json({ error: "Not found" });
@@ -86,7 +107,9 @@ router.get("/:id", async (req, res) => {
         row.engagement,
         row.orgName,
         row.contactFirstName && row.contactLastName ? `${row.contactFirstName} ${row.contactLastName}` : null,
-        row.ownerFullName
+        row.ownerFullName,
+        row.sdrOwnerFullName,
+        row.handoverOwnerFullName
       )
     );
   } catch (err) {

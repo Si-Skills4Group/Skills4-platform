@@ -11,4 +11,6 @@ export type ListEngagementsParams = {
   stage?: string;
   status?: string;
   organisationId?: number;
+  engagementType?: string;
+  sdrOwnerUserId?: number;
 };

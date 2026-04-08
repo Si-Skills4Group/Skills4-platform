@@ -176,6 +176,49 @@ export const EngagementStatus = {
   on_hold: "on_hold",
 } as const;
 
+export type EngagementType =
+  (typeof EngagementType)[keyof typeof EngagementType];
+
+export const EngagementType = {
+  sdr: "sdr",
+  employer_engagement: "employer_engagement",
+  provider_engagement: "provider_engagement",
+} as const;
+
+export type SdrStage = (typeof SdrStage)[keyof typeof SdrStage];
+
+export const SdrStage = {
+  new: "new",
+  researching: "researching",
+  outreach_started: "outreach_started",
+  contacted: "contacted",
+  response_received: "response_received",
+  meeting_booked: "meeting_booked",
+  qualified: "qualified",
+  disqualified: "disqualified",
+  nurture: "nurture",
+} as const;
+
+export type OutreachChannel =
+  (typeof OutreachChannel)[keyof typeof OutreachChannel];
+
+export const OutreachChannel = {
+  email: "email",
+  phone: "phone",
+  linkedin: "linkedin",
+  in_person: "in_person",
+  event: "event",
+} as const;
+
+export type HandoverStatus =
+  (typeof HandoverStatus)[keyof typeof HandoverStatus];
+
+export const HandoverStatus = {
+  pending: "pending",
+  in_progress: "in_progress",
+  complete: "complete",
+} as const;
+
 export interface Engagement {
   id: number;
   title: string;
@@ -194,6 +237,23 @@ export interface Engagement {
   nextActionDate?: string | null;
   nextActionNote?: string | null;
   notes?: string | null;
+  engagementType: EngagementType;
+  sdrStage?: SdrStage | null;
+  qualificationStatus?: string | null;
+  leadSource?: string | null;
+  sdrOwnerUserId?: number | null;
+  sdrOwnerName?: string | null;
+  lastOutreachDate?: string | null;
+  nextOutreachDate?: string | null;
+  outreachChannel?: OutreachChannel | null;
+  touchCount: number;
+  meetingBooked: boolean;
+  meetingDate?: string | null;
+  disqualificationReason?: string | null;
+  handoverStatus?: HandoverStatus | null;
+  handoverOwnerUserId?: number | null;
+  handoverOwnerName?: string | null;
+  handoverNotes?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -212,6 +272,21 @@ export interface CreateEngagementRequest {
   nextActionDate?: string | null;
   nextActionNote?: string | null;
   notes?: string | null;
+  engagementType?: EngagementType;
+  sdrStage?: SdrStage | null;
+  qualificationStatus?: string | null;
+  leadSource?: string | null;
+  sdrOwnerUserId?: number | null;
+  lastOutreachDate?: string | null;
+  nextOutreachDate?: string | null;
+  outreachChannel?: OutreachChannel | null;
+  touchCount?: number;
+  meetingBooked?: boolean;
+  meetingDate?: string | null;
+  disqualificationReason?: string | null;
+  handoverStatus?: HandoverStatus | null;
+  handoverOwnerUserId?: number | null;
+  handoverNotes?: string | null;
 }
 
 export interface UpdateEngagementRequest {
@@ -228,6 +303,21 @@ export interface UpdateEngagementRequest {
   nextActionDate?: string | null;
   nextActionNote?: string | null;
   notes?: string | null;
+  engagementType?: EngagementType;
+  sdrStage?: SdrStage | null;
+  qualificationStatus?: string | null;
+  leadSource?: string | null;
+  sdrOwnerUserId?: number | null;
+  lastOutreachDate?: string | null;
+  nextOutreachDate?: string | null;
+  outreachChannel?: OutreachChannel | null;
+  touchCount?: number;
+  meetingBooked?: boolean;
+  meetingDate?: string | null;
+  disqualificationReason?: string | null;
+  handoverStatus?: HandoverStatus | null;
+  handoverOwnerUserId?: number | null;
+  handoverNotes?: string | null;
 }
 
 export type TaskStatus = (typeof TaskStatus)[keyof typeof TaskStatus];
@@ -362,6 +452,8 @@ export type ListEngagementsParams = {
   stage?: string;
   status?: string;
   organisationId?: number;
+  engagementType?: string;
+  sdrOwnerUserId?: number;
 };
 
 export type ListTasksParams = {

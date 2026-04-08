@@ -7,6 +7,10 @@
  */
 import type { EngagementStage } from "./engagementStage";
 import type { EngagementStatus } from "./engagementStatus";
+import type { EngagementType } from "./engagementType";
+import type { HandoverStatus } from "./handoverStatus";
+import type { OutreachChannel } from "./outreachChannel";
+import type { SdrStage } from "./sdrStage";
 
 export interface UpdateEngagementRequest {
   title?: string;
@@ -22,4 +26,19 @@ export interface UpdateEngagementRequest {
   nextActionDate?: string | null;
   nextActionNote?: string | null;
   notes?: string | null;
+  engagementType?: EngagementType;
+  sdrStage?: SdrStage | null;
+  qualificationStatus?: string | null;
+  leadSource?: string | null;
+  sdrOwnerUserId?: number | null;
+  lastOutreachDate?: string | null;
+  nextOutreachDate?: string | null;
+  outreachChannel?: OutreachChannel | null;
+  touchCount?: number;
+  meetingBooked?: boolean;
+  meetingDate?: string | null;
+  disqualificationReason?: string | null;
+  handoverStatus?: HandoverStatus | null;
+  handoverOwnerUserId?: number | null;
+  handoverNotes?: string | null;
 }
