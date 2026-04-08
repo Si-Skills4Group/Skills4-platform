@@ -409,6 +409,21 @@ export interface DashboardSummary {
   upcomingTasks: Task[];
 }
 
+export interface HandoverRequest {
+  handoverOwnerUserId: number;
+  handoverNotes?: string | null;
+  taskTitle?: string | null;
+  taskDueDate?: string | null;
+  taskDescription?: string | null;
+}
+
+export interface HandoverResult {
+  sdrEngagement: Engagement;
+  newEngagement?: Engagement | null;
+  existingEngagementId?: number | null;
+  task?: Task | null;
+}
+
 export type SdrDashboardSummaryProspectsByStageItem = {
   stage: string;
   count: number;

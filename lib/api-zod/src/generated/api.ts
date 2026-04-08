@@ -676,6 +676,175 @@ export const DeleteEngagementParams = zod.object({
 });
 
 /**
+ * @summary Qualify SDR prospect and hand over to engagement owner
+ */
+export const HandoverEngagementParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const HandoverEngagementBody = zod.object({
+  handoverOwnerUserId: zod.number(),
+  handoverNotes: zod.string().nullish(),
+  taskTitle: zod.string().nullish(),
+  taskDueDate: zod.string().nullish(),
+  taskDescription: zod.string().nullish(),
+});
+
+export const HandoverEngagementResponse = zod.object({
+  sdrEngagement: zod.object({
+    id: zod.number(),
+    title: zod.string(),
+    organisationId: zod.number().nullish(),
+    organisationName: zod.string().nullish(),
+    primaryContactId: zod.number().nullish(),
+    contactName: zod.string().nullish(),
+    ownerUserId: zod.number().nullish(),
+    ownerName: zod.string().nullish(),
+    stage: zod.enum([
+      "lead",
+      "contacted",
+      "meeting_booked",
+      "proposal",
+      "active",
+      "won",
+      "dormant",
+    ]),
+    status: zod.enum(["open", "closed_won", "closed_lost", "on_hold"]),
+    expectedLearnerVolume: zod.number().nullish(),
+    expectedValue: zod.number().nullish(),
+    probability: zod.number().nullish(),
+    lastContactDate: zod.string().nullish(),
+    nextActionDate: zod.string().nullish(),
+    nextActionNote: zod.string().nullish(),
+    notes: zod.string().nullish(),
+    engagementType: zod.enum([
+      "sdr",
+      "employer_engagement",
+      "provider_engagement",
+    ]),
+    sdrStage: zod
+      .enum([
+        "new",
+        "researching",
+        "outreach_started",
+        "contacted",
+        "response_received",
+        "meeting_booked",
+        "qualified",
+        "disqualified",
+        "nurture",
+      ])
+      .nullish(),
+    qualificationStatus: zod.string().nullish(),
+    leadSource: zod.string().nullish(),
+    sdrOwnerUserId: zod.number().nullish(),
+    sdrOwnerName: zod.string().nullish(),
+    lastOutreachDate: zod.string().nullish(),
+    nextOutreachDate: zod.string().nullish(),
+    outreachChannel: zod
+      .enum(["email", "phone", "linkedin", "in_person", "event"])
+      .nullish(),
+    touchCount: zod.number(),
+    meetingBooked: zod.boolean(),
+    meetingDate: zod.string().nullish(),
+    disqualificationReason: zod.string().nullish(),
+    handoverStatus: zod.enum(["pending", "in_progress", "complete"]).nullish(),
+    handoverOwnerUserId: zod.number().nullish(),
+    handoverOwnerName: zod.string().nullish(),
+    handoverNotes: zod.string().nullish(),
+    createdAt: zod.string(),
+    updatedAt: zod.string(),
+  }),
+  newEngagement: zod
+    .object({
+      id: zod.number(),
+      title: zod.string(),
+      organisationId: zod.number().nullish(),
+      organisationName: zod.string().nullish(),
+      primaryContactId: zod.number().nullish(),
+      contactName: zod.string().nullish(),
+      ownerUserId: zod.number().nullish(),
+      ownerName: zod.string().nullish(),
+      stage: zod.enum([
+        "lead",
+        "contacted",
+        "meeting_booked",
+        "proposal",
+        "active",
+        "won",
+        "dormant",
+      ]),
+      status: zod.enum(["open", "closed_won", "closed_lost", "on_hold"]),
+      expectedLearnerVolume: zod.number().nullish(),
+      expectedValue: zod.number().nullish(),
+      probability: zod.number().nullish(),
+      lastContactDate: zod.string().nullish(),
+      nextActionDate: zod.string().nullish(),
+      nextActionNote: zod.string().nullish(),
+      notes: zod.string().nullish(),
+      engagementType: zod.enum([
+        "sdr",
+        "employer_engagement",
+        "provider_engagement",
+      ]),
+      sdrStage: zod
+        .enum([
+          "new",
+          "researching",
+          "outreach_started",
+          "contacted",
+          "response_received",
+          "meeting_booked",
+          "qualified",
+          "disqualified",
+          "nurture",
+        ])
+        .nullish(),
+      qualificationStatus: zod.string().nullish(),
+      leadSource: zod.string().nullish(),
+      sdrOwnerUserId: zod.number().nullish(),
+      sdrOwnerName: zod.string().nullish(),
+      lastOutreachDate: zod.string().nullish(),
+      nextOutreachDate: zod.string().nullish(),
+      outreachChannel: zod
+        .enum(["email", "phone", "linkedin", "in_person", "event"])
+        .nullish(),
+      touchCount: zod.number(),
+      meetingBooked: zod.boolean(),
+      meetingDate: zod.string().nullish(),
+      disqualificationReason: zod.string().nullish(),
+      handoverStatus: zod
+        .enum(["pending", "in_progress", "complete"])
+        .nullish(),
+      handoverOwnerUserId: zod.number().nullish(),
+      handoverOwnerName: zod.string().nullish(),
+      handoverNotes: zod.string().nullish(),
+      createdAt: zod.string(),
+      updatedAt: zod.string(),
+    })
+    .nullish(),
+  existingEngagementId: zod.number().nullish(),
+  task: zod
+    .object({
+      id: zod.number(),
+      title: zod.string(),
+      description: zod.string().nullish(),
+      status: zod.enum(["open", "in_progress", "completed", "overdue"]),
+      priority: zod.enum(["low", "medium", "high"]),
+      dueDate: zod.string().nullish(),
+      organisationId: zod.number().nullish(),
+      organisationName: zod.string().nullish(),
+      engagementId: zod.number().nullish(),
+      engagementTitle: zod.string().nullish(),
+      assignedUserId: zod.number().nullish(),
+      assignedUserName: zod.string().nullish(),
+      createdAt: zod.string(),
+      updatedAt: zod.string(),
+    })
+    .nullish(),
+});
+
+/**
  * @summary List all tasks
  */
 export const ListTasksQueryParams = zod.object({

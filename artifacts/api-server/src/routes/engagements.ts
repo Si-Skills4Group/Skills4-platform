@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { engagementsTable, organisationsTable, contactsTable, usersTable } from "@workspace/db/schema";
-import { eq, ilike, and, or } from "drizzle-orm";
+import { engagementsTable, organisationsTable, contactsTable, usersTable, tasksTable } from "@workspace/db/schema";
+import { eq, ilike, and, or, ne } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { requireMinRole } from "../middlewares/requireRole";
 import { logActivity } from "../lib/logActivity";
@@ -191,6 +191,167 @@ router.put("/:id", requireMinRole("engagement_user"), async (req, res) => {
     }
 
     res.json(format(eng, orgName, contactName, ownerName));
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.post("/:id/handover", requireMinRole("engagement_user"), async (req, res) => {
+  try {
+    const sdrId = Number(req.params.id);
+    const { handoverOwnerUserId, handoverNotes, taskTitle, taskDueDate, taskDescription } = req.body as {
+      handoverOwnerUserId: number;
+      handoverNotes?: string;
+      taskTitle?: string;
+      taskDueDate?: string;
+      taskDescription?: string;
+    };
+
+    if (!handoverOwnerUserId) {
+      return res.status(400).json({ error: "handoverOwnerUserId is required" });
+    }
+
+    // 1. Load the SDR engagement
+    const [sdrRow] = await db
+      .select({
+        engagement: engagementsTable,
+        orgName: organisationsTable.name,
+        contactFirstName: contactsTable.firstName,
+        contactLastName: contactsTable.lastName,
+      })
+      .from(engagementsTable)
+      .leftJoin(organisationsTable, eq(engagementsTable.organisationId, organisationsTable.id))
+      .leftJoin(contactsTable, eq(engagementsTable.primaryContactId, contactsTable.id))
+      .where(eq(engagementsTable.id, sdrId));
+
+    if (!sdrRow) return res.status(404).json({ error: "Engagement not found" });
+
+    const sdr = sdrRow.engagement;
+    if (sdr.engagementType !== "sdr") {
+      return res.status(400).json({ error: "Engagement is not an SDR record" });
+    }
+
+    const orgName = sdrRow.orgName ?? null;
+    const contactName = sdrRow.contactFirstName && sdrRow.contactLastName
+      ? `${sdrRow.contactFirstName} ${sdrRow.contactLastName}`
+      : null;
+
+    // 2. Check for an existing employer_engagement for the same organisation
+    let existingEngagementId: number | null = null;
+    let newEngagement: typeof engagementsTable.$inferSelect | null = null;
+
+    if (sdr.organisationId) {
+      const [existing] = await db
+        .select({ id: engagementsTable.id })
+        .from(engagementsTable)
+        .where(and(
+          eq(engagementsTable.organisationId, sdr.organisationId),
+          eq(engagementsTable.engagementType, "employer_engagement"),
+          ne(engagementsTable.id, sdrId),
+        ))
+        .limit(1);
+
+      if (existing) {
+        existingEngagementId = existing.id;
+      }
+    }
+
+    // 3. Create new employer engagement if none exists
+    if (!existingEngagementId) {
+      const today = new Date().toISOString().split("T")[0];
+      const combinedNotes = [sdr.notes, handoverNotes].filter(Boolean).join("\n\n---\n\n") || null;
+
+      const [created] = await db.insert(engagementsTable).values({
+        engagementType: "employer_engagement",
+        organisationId: sdr.organisationId ?? undefined,
+        primaryContactId: sdr.primaryContactId ?? undefined,
+        ownerUserId: handoverOwnerUserId,
+        title: orgName ? `${orgName} — Employer Engagement` : "Employer Engagement",
+        stage: sdr.meetingBooked ? "meeting_booked" : "contacted",
+        status: "open",
+        notes: combinedNotes,
+        lastContactDate: sdr.meetingDate ?? today,
+        updatedAt: new Date(),
+      }).returning();
+
+      newEngagement = created;
+
+      void logActivity("engagement_created", "engagement", created.id, req.user?.id, {
+        title: created.title,
+        stage: created.stage,
+        orgName,
+        organisationId: created.organisationId,
+        via: "sdr_handover",
+        sdrEngagementId: sdrId,
+      });
+    }
+
+    // 4. Update the SDR engagement
+    const [updatedSdr] = await db.update(engagementsTable).set({
+      sdrStage: "qualified",
+      qualificationStatus: "qualified",
+      handoverStatus: "complete",
+      handoverOwnerUserId,
+      handoverNotes: handoverNotes ?? sdr.handoverNotes,
+      updatedAt: new Date(),
+    }).where(eq(engagementsTable.id, sdrId)).returning();
+
+    // 5. Create follow-up task if requested
+    let task: typeof tasksTable.$inferSelect | null = null;
+    if (taskTitle) {
+      const targetEngagementId = newEngagement?.id ?? existingEngagementId ?? undefined;
+      const [createdTask] = await db.insert(tasksTable).values({
+        title: taskTitle,
+        dueDate: taskDueDate ?? undefined,
+        description: taskDescription ?? undefined,
+        assignedUserId: handoverOwnerUserId,
+        organisationId: sdr.organisationId ?? undefined,
+        engagementId: targetEngagementId,
+        priority: "high",
+        status: "open",
+        updatedAt: new Date(),
+      }).returning();
+      task = createdTask;
+    }
+
+    // 6. Build response
+    const [ownerRow] = await db
+      .select({ fullName: usersTable.fullName })
+      .from(usersTable)
+      .where(eq(usersTable.id, handoverOwnerUserId));
+    const ownerName = ownerRow?.fullName ?? null;
+
+    const sdrFormatted = format(
+      updatedSdr,
+      orgName,
+      contactName,
+      updatedSdr.ownerUserId ? null : null,
+      sdr.sdrOwnerUserId ? null : null,
+      ownerName
+    );
+
+    const newEngagementFormatted = newEngagement
+      ? format(newEngagement, orgName, contactName, ownerName)
+      : null;
+
+    const taskFormatted = task
+      ? {
+          ...task,
+          organisationName: orgName,
+          engagementTitle: newEngagement?.title ?? null,
+          assignedUserName: ownerName,
+          createdAt: task.createdAt.toISOString(),
+          updatedAt: task.updatedAt.toISOString(),
+        }
+      : null;
+
+    res.json({
+      sdrEngagement: sdrFormatted,
+      newEngagement: newEngagementFormatted,
+      existingEngagementId,
+      task: taskFormatted,
+    });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Internal server error" });

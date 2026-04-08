@@ -10,6 +10,7 @@ import {
   useUpdateEngagement,
   useCreateTask,
   useListUsers,
+  useHandoverEngagement,
 } from "@workspace/api-client-react";
 import type {
   Engagement,
@@ -39,7 +40,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Modal, ConfirmModal } from "@/components/ui/Modal";
+import { Modal } from "@/components/ui/Modal";
 import { formatDate, cn } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
 
@@ -310,6 +311,121 @@ function ChangeStageModal({
   );
 }
 
+// ─── Handover Modal ───────────────────────────────────────────────────────────
+
+function HandoverModal({
+  open,
+  onClose,
+  engagement,
+  users,
+  onConfirm,
+  loading,
+}: {
+  open: boolean;
+  onClose: () => void;
+  engagement: Engagement | null;
+  users: { id: number; fullName: string }[];
+  onConfirm: (ownerId: number, notes: string, taskTitle: string, taskDueDate: string, taskDesc: string) => void;
+  loading: boolean;
+}) {
+  const [ownerId, setOwnerId] = useState("");
+  const [notes, setNotes] = useState("");
+  const [taskTitle, setTaskTitle] = useState("");
+  const [taskDueDate, setTaskDueDate] = useState("");
+  const [taskDesc, setTaskDesc] = useState("");
+
+  useEffect(() => {
+    if (open && engagement) {
+      setOwnerId("");
+      setNotes("");
+      setTaskTitle(`Follow up — ${engagement.organisationName ?? engagement.title}`);
+      setTaskDueDate("");
+      setTaskDesc("");
+    }
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const canSubmit = ownerId && !loading;
+
+  return (
+    <Modal open={open} onClose={onClose} title="Qualify & Hand Over" size="md">
+      <div className="p-6 space-y-5">
+        {/* Context */}
+        {engagement && (
+          <div className="rounded-lg bg-muted/50 border px-4 py-3 space-y-1 text-sm">
+            <div className="font-medium text-foreground">{engagement.organisationName ?? engagement.title}</div>
+            {engagement.contactName && (
+              <div className="text-muted-foreground text-xs flex items-center gap-1">
+                <User2 size={11} />
+                {engagement.contactName}
+              </div>
+            )}
+            {engagement.meetingDate && (
+              <div className="text-muted-foreground text-xs flex items-center gap-1">
+                <CalendarCheck size={11} />
+                Meeting: {formatDate(engagement.meetingDate)}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Handover owner */}
+        <div className="space-y-1.5">
+          <Label>Assign to <span className="text-destructive">*</span></Label>
+          <Select value={ownerId} onValueChange={setOwnerId}>
+            <SelectOption value="">Select a team member…</SelectOption>
+            {users.map((u) => (
+              <SelectOption key={u.id} value={String(u.id)}>{u.fullName}</SelectOption>
+            ))}
+          </Select>
+        </div>
+
+        {/* Handover notes */}
+        <div className="space-y-1.5">
+          <Label>Handover notes <span className="text-muted-foreground font-normal">(optional)</span></Label>
+          <Textarea
+            rows={3}
+            placeholder="Key context, next steps, anything the engagement owner needs to know…"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+          />
+        </div>
+
+        {/* Follow-up task */}
+        <div className="space-y-3 border-t pt-4">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Follow-up task (optional)</p>
+          <div className="space-y-1.5">
+            <Label>Task title</Label>
+            <Input value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} placeholder="e.g. Send proposal" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Due date</Label>
+              <Input type="date" value={taskDueDate} onChange={(e) => setTaskDueDate(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Notes</Label>
+              <Input value={taskDesc} onChange={(e) => setTaskDesc(e.target.value)} placeholder="Brief context…" />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-2 justify-end pt-1">
+          <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+          <Button
+            size="sm"
+            onClick={() => onConfirm(Number(ownerId), notes, taskTitle, taskDueDate, taskDesc)}
+            disabled={!canSubmit}
+            className="gap-1.5"
+          >
+            {loading ? <RefreshCw size={13} className="animate-spin" /> : <Trophy size={13} />}
+            Qualify &amp; Hand Over
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 // ─── Row Actions ──────────────────────────────────────────────────────────────
 
 type ActiveModal =
@@ -317,7 +433,7 @@ type ActiveModal =
   | { type: "disqualify"; eng: Engagement }
   | { type: "task"; eng: Engagement }
   | { type: "stage"; eng: Engagement }
-  | { type: "qualify"; eng: Engagement }
+  | { type: "handover"; eng: Engagement }
   | null;
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
@@ -355,6 +471,15 @@ export default function SdrQueue() {
 
   const createTaskMutation = useCreateTask({
     mutation: { onSuccess: () => setActiveModal(null) },
+  });
+
+  const handoverMutation = useHandoverEngagement({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["/api/engagements"] });
+        setActiveModal(null);
+      },
+    },
   });
 
   // Derived list with filters
@@ -398,12 +523,24 @@ export default function SdrQueue() {
     setActiveModal(null);
   }
 
-  function handleQualify(eng: Engagement) {
-    updateMutation.mutate({
-      id: eng.id,
-      data: { sdrStage: "qualified", qualificationStatus: "qualified" } as any,
+  function handleHandover(
+    ownerId: number,
+    notes: string,
+    taskTitle: string,
+    taskDueDate: string,
+    taskDesc: string,
+  ) {
+    if (!activeModal || activeModal.type !== "handover") return;
+    handoverMutation.mutate({
+      id: activeModal.eng.id,
+      data: {
+        handoverOwnerUserId: ownerId,
+        handoverNotes: notes || undefined,
+        taskTitle: taskTitle || undefined,
+        taskDueDate: taskDueDate || undefined,
+        taskDescription: taskDesc || undefined,
+      },
     });
-    setActiveModal(null);
   }
 
   function handleDisqualify(reason: string) {
@@ -434,7 +571,7 @@ export default function SdrQueue() {
     });
   }
 
-  const isMutating = updateMutation.isPending || createTaskMutation.isPending;
+  const isMutating = updateMutation.isPending || createTaskMutation.isPending || handoverMutation.isPending;
 
   return (
     <div className="h-full flex flex-col gap-5 animate-in fade-in duration-500">
@@ -690,11 +827,11 @@ export default function SdrQueue() {
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 className="gap-2 text-xs text-emerald-600 focus:text-emerald-600"
-                                onClick={() => setActiveModal({ type: "qualify", eng })}
+                                onClick={() => setActiveModal({ type: "handover", eng })}
                                 disabled={eng.sdrStage === "qualified"}
                               >
                                 <Trophy size={13} />
-                                Mark qualified
+                                Qualify &amp; Hand Over
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 className="gap-2 text-xs text-destructive focus:text-destructive"
@@ -765,14 +902,13 @@ export default function SdrQueue() {
         loading={isMutating}
       />
 
-      <ConfirmModal
-        open={activeModal?.type === "qualify"}
+      <HandoverModal
+        open={activeModal?.type === "handover"}
         onClose={() => setActiveModal(null)}
-        onConfirm={() => activeModal?.type === "qualify" && handleQualify(activeModal.eng)}
-        title="Mark as Qualified"
-        message={`Mark "${activeModal?.type === "qualify" ? (activeModal.eng.organisationName ?? activeModal.eng.title) : ""}" as qualified and ready for handover?`}
-        confirmLabel="Mark Qualified"
-        isPending={isMutating}
+        engagement={activeModal?.type === "handover" ? activeModal.eng : null}
+        users={users}
+        onConfirm={handleHandover}
+        loading={isMutating}
       />
     </div>
   );

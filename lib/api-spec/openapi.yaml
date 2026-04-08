@@ -460,6 +460,35 @@ paths:
         "204":
           description: Deleted
 
+  /engagements/{id}/handover:
+    post:
+      operationId: handoverEngagement
+      tags: [engagements]
+      summary: Qualify SDR prospect and hand over to engagement owner
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HandoverRequest"
+      responses:
+        "200":
+          description: Handover complete
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HandoverResult"
+        "400":
+          description: Bad request
+        "404":
+          description: Not found
+
   # --- Tasks ---
   /tasks:
     get:
@@ -1349,6 +1378,41 @@ components:
           items:
             $ref: "#/components/schemas/Task"
       required: [totalOrganisations, activeOrganisations, totalContacts, totalEngagements, wonEngagements, openTasks, overdueTasks, engagementsByStage, tasksByStatus, organisationsByType, myOpenTasks, recentOrganisations, upcomingNextActions, recentEngagements, upcomingTasks]
+
+    HandoverRequest:
+      type: object
+      properties:
+        handoverOwnerUserId:
+          type: integer
+        handoverNotes:
+          type: string
+          nullable: true
+        taskTitle:
+          type: string
+          nullable: true
+        taskDueDate:
+          type: string
+          nullable: true
+        taskDescription:
+          type: string
+          nullable: true
+      required: [handoverOwnerUserId]
+
+    HandoverResult:
+      type: object
+      properties:
+        sdrEngagement:
+          $ref: "#/components/schemas/Engagement"
+        newEngagement:
+          $ref: "#/components/schemas/Engagement"
+          nullable: true
+        existingEngagementId:
+          type: integer
+          nullable: true
+        task:
+          $ref: "#/components/schemas/Task"
+          nullable: true
+      required: [sdrEngagement]
 
     SdrDashboardSummary:
       type: object

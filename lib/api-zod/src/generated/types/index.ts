@@ -22,6 +22,8 @@ export * from "./engagement";
 export * from "./engagementStage";
 export * from "./engagementStatus";
 export * from "./engagementType";
+export * from "./handoverRequest";
+export * from "./handoverResult";
 export * from "./handoverStatus";
 export * from "./healthStatus";
 export * from "./listActivityParams";

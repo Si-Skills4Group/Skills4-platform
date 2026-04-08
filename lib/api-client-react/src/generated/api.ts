@@ -25,6 +25,8 @@ import type {
   CreateTaskRequest,
   DashboardSummary,
   Engagement,
+  HandoverRequest,
+  HandoverResult,
   HealthStatus,
   ListActivityParams,
   ListContactsParams,
@@ -1823,6 +1825,93 @@ export const useDeleteEngagement = <
   TContext
 > => {
   return useMutation(getDeleteEngagementMutationOptions(options));
+};
+
+/**
+ * @summary Qualify SDR prospect and hand over to engagement owner
+ */
+export const getHandoverEngagementUrl = (id: number) => {
+  return `/api/engagements/${id}/handover`;
+};
+
+export const handoverEngagement = async (
+  id: number,
+  handoverRequest: HandoverRequest,
+  options?: RequestInit,
+): Promise<HandoverResult> => {
+  return customFetch<HandoverResult>(getHandoverEngagementUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(handoverRequest),
+  });
+};
+
+export const getHandoverEngagementMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof handoverEngagement>>,
+    TError,
+    { id: number; data: BodyType<HandoverRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof handoverEngagement>>,
+  TError,
+  { id: number; data: BodyType<HandoverRequest> },
+  TContext
+> => {
+  const mutationKey = ["handoverEngagement"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof handoverEngagement>>,
+    { id: number; data: BodyType<HandoverRequest> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return handoverEngagement(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type HandoverEngagementMutationResult = NonNullable<
+  Awaited<ReturnType<typeof handoverEngagement>>
+>;
+export type HandoverEngagementMutationBody = BodyType<HandoverRequest>;
+export type HandoverEngagementMutationError = ErrorType<void>;
+
+/**
+ * @summary Qualify SDR prospect and hand over to engagement owner
+ */
+export const useHandoverEngagement = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof handoverEngagement>>,
+    TError,
+    { id: number; data: BodyType<HandoverRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof handoverEngagement>>,
+  TError,
+  { id: number; data: BodyType<HandoverRequest> },
+  TContext
+> => {
+  return useMutation(getHandoverEngagementMutationOptions(options));
 };
 
 /**

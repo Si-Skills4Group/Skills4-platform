@@ -59,6 +59,9 @@ All API routes are prefixed with `/api/` and follow RESTful conventions for CRUD
 - **Role Hierarchy:** `admin` (Level 4, full CRUD + user management), `crm_manager` (Level 3, full CRUD), `engagement_user` (Level 2, create + edit, no delete), `read_only` (Level 1, view only).
 - **Entra ID Migration Path:** Outlined steps for integrating `passport-azure-ad` for Microsoft SSO.
 
+**API Routes (key additions):**
+- `POST /api/engagements/:id/handover` — Qualifies an SDR record and hands it over to an engagement owner. Creates an `employer_engagement` record if one does not exist for the same organisation, updates the SDR record (`sdrStage=qualified`, `handoverStatus=complete`), and optionally creates a follow-up task. Returns `{ sdrEngagement, newEngagement, existingEngagementId, task }`.
+
 **Database Schema:**
 Located in `lib/db/src/schema/`, with Drizzle ORM. Schemas include:
 - `users`: Stores user information (id, full_name, email, role, is_active).
