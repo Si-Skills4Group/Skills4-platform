@@ -12,6 +12,7 @@ import Engagements from "@/pages/Engagements";
 import EngagementDetail from "@/pages/EngagementDetail";
 import Tasks from "@/pages/Tasks";
 import SdrQueue from "@/pages/SdrQueue";
+import SdrDashboard from "@/pages/SdrDashboard";
 import Settings from "@/pages/Settings";
 import Login from "@/pages/Login";
 import NotFound from "@/pages/not-found";
@@ -42,6 +43,7 @@ function Router() {
               <Route path="/engagements" component={Engagements} />
               <Route path="/engagements/:id" component={EngagementDetail} />
               <Route path="/tasks" component={Tasks} />
+              <Route path="/sdr-dashboard" component={SdrDashboard} />
               <Route path="/sdr" component={SdrQueue} />
               <Route path="/settings" component={Settings} />
               <Route component={NotFound} />

@@ -41,6 +41,7 @@ The CRM encompasses six core modules: Organisations, Contacts, Engagements, Task
 - **Contacts (`/contacts`):** List view with search, forms for creation/editing/deletion with email validation, and a detail view with linked engagements and tasks.
 - **Engagements (`/engagements`):** Kanban and table views with HTML5 drag-and-drop, 7 stages, overdue highlighting, search/status filters, and CRUD operations. Detail page (`/engagements/:id`) features a stage stepper, stat cards, task section, and notes.
 - **Tasks (`/tasks`):** Five distinct views (All, My Tasks, Overdue, Due This Week, Completed), search, priority filter, mark-complete functionality, CRUD operations, and navigation links to related entities.
+- **SDR Dashboard (`/sdr-dashboard`):** SDR-specific dashboard showing 6 metric cards (New Prospects, Due Today, Overdue, Meetings This Week, Qualified, Disqualified), Prospects by Stage bar chart, Conversion Funnel horizontal bar chart, My Tasks list, and Recently Updated prospects list. Auto-refreshes every 60 seconds.
 - **SDR Queue (`/sdr`):** Dedicated SDR prospect pipeline table with stage badges, overdue highlighting (amber rows), filter bar (stage/owner/source/overdue/search), and per-row quick actions: Log Outreach (channel picker dropdown), Change Stage modal, Mark Meeting Booked modal, Mark Qualified (confirm), Mark Disqualified (reason modal), Create Follow-up Task modal.
 - **Settings (`/settings`):** User profile settings.
 

@@ -409,6 +409,29 @@ export interface DashboardSummary {
   upcomingTasks: Task[];
 }
 
+export type SdrDashboardSummaryProspectsByStageItem = {
+  stage: string;
+  count: number;
+};
+
+export type SdrDashboardSummaryConversionFunnelItem = {
+  label: string;
+  count: number;
+};
+
+export interface SdrDashboardSummary {
+  newProspects: number;
+  dueFollowUpsToday: number;
+  overdueFollowUps: number;
+  meetingsBookedThisWeek: number;
+  qualifiedLeads: number;
+  disqualifiedLeads: number;
+  prospectsByStage: SdrDashboardSummaryProspectsByStageItem[];
+  conversionFunnel: SdrDashboardSummaryConversionFunnelItem[];
+  myTasks: Task[];
+  recentProspects: Engagement[];
+}
+
 export type ActivityEventType =
   (typeof ActivityEventType)[keyof typeof ActivityEventType];
 

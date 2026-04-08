@@ -599,6 +599,19 @@ paths:
                   $ref: "#/components/schemas/ActivityLogEntry"
 
   # --- Dashboard ---
+  /dashboard/sdr:
+    get:
+      operationId: getSdrDashboard
+      tags: [dashboard]
+      summary: Get SDR dashboard stats
+      responses:
+        "200":
+          description: SDR dashboard data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SdrDashboardSummary"
+
   /dashboard/summary:
     get:
       operationId: getDashboardSummary
@@ -1336,6 +1349,51 @@ components:
           items:
             $ref: "#/components/schemas/Task"
       required: [totalOrganisations, activeOrganisations, totalContacts, totalEngagements, wonEngagements, openTasks, overdueTasks, engagementsByStage, tasksByStatus, organisationsByType, myOpenTasks, recentOrganisations, upcomingNextActions, recentEngagements, upcomingTasks]
+
+    SdrDashboardSummary:
+      type: object
+      properties:
+        newProspects:
+          type: integer
+        dueFollowUpsToday:
+          type: integer
+        overdueFollowUps:
+          type: integer
+        meetingsBookedThisWeek:
+          type: integer
+        qualifiedLeads:
+          type: integer
+        disqualifiedLeads:
+          type: integer
+        prospectsByStage:
+          type: array
+          items:
+            type: object
+            properties:
+              stage:
+                type: string
+              count:
+                type: integer
+            required: [stage, count]
+        conversionFunnel:
+          type: array
+          items:
+            type: object
+            properties:
+              label:
+                type: string
+              count:
+                type: integer
+            required: [label, count]
+        myTasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/Task"
+        recentProspects:
+          type: array
+          items:
+            $ref: "#/components/schemas/Engagement"
+      required: [newProspects, dueFollowUpsToday, overdueFollowUps, meetingsBookedThisWeek, qualifiedLeads, disqualifiedLeads, prospectsByStage, conversionFunnel, myTasks, recentProspects]
 
     # --- Activity Log ---
     ActivityEventType:

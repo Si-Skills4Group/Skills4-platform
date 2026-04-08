@@ -10,6 +10,7 @@ import {
   LogOut,
   Shield,
   Target,
+  BarChart2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,6 +21,7 @@ const navigation = [
   { name: "Contacts", href: "/contacts", icon: Users },
   { name: "Engagements", href: "/engagements", icon: Handshake },
   { name: "Tasks", href: "/tasks", icon: CheckSquare },
+  { name: "SDR Dashboard", href: "/sdr-dashboard", icon: BarChart2 },
   { name: "SDR Queue", href: "/sdr", icon: Target },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
