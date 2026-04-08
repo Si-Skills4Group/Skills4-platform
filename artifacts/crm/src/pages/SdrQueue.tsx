@@ -199,17 +199,18 @@ function DisqualifyModal({
     <Modal open={open} onClose={onClose} title="Disqualify Lead" size="sm">
       <div className="p-6 space-y-4">
         <div className="space-y-1.5">
-          <Label>Reason <span className="text-muted-foreground font-normal">(optional)</span></Label>
+          <Label>Reason <span className="text-destructive">*</span></Label>
           <Textarea
             rows={3}
             placeholder="e.g. No budget, wrong sector, not decision-maker…"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
           />
+          <p className="text-xs text-muted-foreground">A reason is required to disqualify a prospect.</p>
         </div>
         <div className="flex gap-2 justify-end">
           <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
-          <Button size="sm" variant="destructive" onClick={() => onConfirm(reason)} disabled={loading}>
+          <Button size="sm" variant="destructive" onClick={() => onConfirm(reason)} disabled={loading || !reason.trim()}>
             <XCircle size={14} className="mr-1.5" />
             Disqualify
           </Button>

@@ -62,6 +62,12 @@ All API routes are prefixed with `/api/` and follow RESTful conventions for CRUD
 **API Routes (key additions):**
 - `POST /api/engagements/:id/handover` — Qualifies an SDR record and hands it over to an engagement owner. Creates an `employer_engagement` record if one does not exist for the same organisation, updates the SDR record (`sdrStage=qualified`, `handoverStatus=complete`), and optionally creates a follow-up task. Returns `{ sdrEngagement, newEngagement, existingEngagementId, task }`.
 
+**SDR Automations (synchronous, in-process, `engagements.ts`):**
+1. **On SDR creation** (`POST /engagements` with `engagementType=sdr`): defaults `sdrStage` to `"new"`, assigns `sdrOwnerUserId` to the authenticated user if not provided, and auto-creates a "Initial outreach — [org]" task (priority: medium).
+2. **On stage → contacted** (`PUT /engagements/:id` with `sdrStage=contacted`): automatically sets `lastOutreachDate` to today if not already provided.
+3. **On meeting_booked = true** (`PUT /engagements/:id` with `meetingBooked=true`): auto-creates a "Prepare for meeting — [org]" task (priority: high, due date = meeting date).
+4. **Disqualify validation**: `sdrStage=disqualified` requires a non-empty `disqualificationReason`; returns HTTP 400 otherwise. Frontend enforces this by disabling the submit button until a reason is entered.
+
 **Database Schema:**
 Located in `lib/db/src/schema/`, with Drizzle ORM. Schemas include:
 - `users`: Stores user information (id, full_name, email, role, is_active).

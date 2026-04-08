@@ -122,6 +122,14 @@ router.post("/", requireMinRole("engagement_user"), async (req, res) => {
   try {
     const body = { ...req.body };
     if (body.expectedValue != null) body.expectedValue = String(body.expectedValue);
+
+    // ── Automation 1: SDR creation defaults ──────────────────────────────────
+    // D365 migration: these defaults map to Power Automate flow on Opportunity create.
+    if (body.engagementType === "sdr") {
+      if (!body.sdrStage) body.sdrStage = "new";
+      if (!body.sdrOwnerUserId && req.user?.id) body.sdrOwnerUserId = req.user.id;
+    }
+
     const [eng] = await db.insert(engagementsTable).values({ ...body, updatedAt: new Date() }).returning();
 
     let orgName = null, contactName = null, ownerName = null;
@@ -145,6 +153,27 @@ router.post("/", requireMinRole("engagement_user"), async (req, res) => {
         title: eng.title, engagementId: eng.id, stage: eng.stage,
       });
     }
+
+    // ── Automation 1b: auto-create first outreach task for new SDR prospects ─
+    // D365 migration: replace with a Power Automate flow creating a Phone Call
+    // Activity on Opportunity create when type = SDR.
+    if (eng.engagementType === "sdr") {
+      const taskAssignee = eng.sdrOwnerUserId ?? eng.ownerUserId ?? undefined;
+      await db.insert(tasksTable).values({
+        title: `Initial outreach — ${orgName ?? eng.title}`,
+        organisationId: eng.organisationId ?? undefined,
+        engagementId: eng.id,
+        assignedUserId: taskAssignee,
+        priority: "medium",
+        status: "open",
+        updatedAt: new Date(),
+      });
+      void logActivity("task_created", "engagement", eng.id, req.user?.id, {
+        taskTitle: `Initial outreach — ${orgName ?? eng.title}`,
+        via: "sdr_automation",
+      });
+    }
+
     res.status(201).json(format(eng, orgName, contactName, ownerName));
   } catch (err) {
     req.log.error(err);
@@ -158,7 +187,38 @@ router.put("/:id", requireMinRole("engagement_user"), async (req, res) => {
     const body = { ...req.body };
     if (body.expectedValue != null) body.expectedValue = String(body.expectedValue);
 
-    const [before] = await db.select({ stage: engagementsTable.stage }).from(engagementsTable).where(eq(engagementsTable.id, engId));
+    const [before] = await db
+      .select({
+        stage: engagementsTable.stage,
+        sdrStage: engagementsTable.sdrStage,
+        meetingBooked: engagementsTable.meetingBooked,
+        engagementType: engagementsTable.engagementType,
+        sdrOwnerUserId: engagementsTable.sdrOwnerUserId,
+        ownerUserId: engagementsTable.ownerUserId,
+        organisationId: engagementsTable.organisationId,
+        title: engagementsTable.title,
+      })
+      .from(engagementsTable)
+      .where(eq(engagementsTable.id, engId));
+
+    if (!before) return res.status(404).json({ error: "Not found" });
+
+    const isSdr = before.engagementType === "sdr";
+
+    // ── Automation 4: disqualify requires a reason ────────────────────────────
+    // D365 migration: enforce via Business Rule on Opportunity.statuscode field.
+    if (isSdr && body.sdrStage === "disqualified" && !body.disqualificationReason) {
+      return res.status(400).json({ error: "disqualificationReason is required when marking as disqualified" });
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+
+    // ── Automation 2: stage → contacted auto-sets last_outreach_date ──────────
+    // D365 migration: Power Automate flow on SDR stage field change to "contacted".
+    if (isSdr && body.sdrStage === "contacted" && before.sdrStage !== "contacted") {
+      if (!body.lastOutreachDate) body.lastOutreachDate = today;
+    }
+
     const [eng] = await db.update(engagementsTable).set({ ...body, updatedAt: new Date() }).where(eq(engagementsTable.id, engId)).returning();
     if (!eng) return res.status(404).json({ error: "Not found" });
 
@@ -176,10 +236,9 @@ router.put("/:id", requireMinRole("engagement_user"), async (req, res) => {
       ownerName = u?.fullName ?? null;
     }
 
-    // Automation: stage_changed — log when the engagement stage moves.
-    // D365 migration: replace with a Business Process Flow stage history entry,
-    // or a Power Automate flow triggered by Opportunity.salesstage field change.
-    if (body.stage && before?.stage && body.stage !== before.stage) {
+    // Existing: stage_changed activity log
+    // D365 migration: replace with Business Process Flow stage history entry.
+    if (body.stage && before.stage && body.stage !== before.stage) {
       void logActivity("stage_changed", "engagement", eng.id, req.user?.id, {
         stageFrom: before.stage, stageTo: body.stage, title: eng.title, status: eng.status,
       });
@@ -188,6 +247,29 @@ router.put("/:id", requireMinRole("engagement_user"), async (req, res) => {
           stageFrom: before.stage, stageTo: body.stage, title: eng.title, engagementId: eng.id,
         });
       }
+    }
+
+    // ── Automation 3: meeting_booked → create prep task ───────────────────────
+    // D365 migration: Power Automate flow on Opportunity.crm_meetingbooked = true.
+    const meetingJustBooked = isSdr && body.meetingBooked === true && !before.meetingBooked;
+    if (meetingJustBooked) {
+      const assignee = eng.sdrOwnerUserId ?? eng.ownerUserId ?? undefined;
+      const meetingDate = body.meetingDate ?? eng.meetingDate ?? null;
+      await db.insert(tasksTable).values({
+        title: `Prepare for meeting — ${orgName ?? eng.title}`,
+        description: meetingDate ? `Meeting scheduled for ${meetingDate}` : undefined,
+        organisationId: eng.organisationId ?? undefined,
+        engagementId: eng.id,
+        assignedUserId: assignee,
+        dueDate: meetingDate ?? undefined,
+        priority: "high",
+        status: "open",
+        updatedAt: new Date(),
+      });
+      void logActivity("task_created", "engagement", eng.id, req.user?.id, {
+        taskTitle: `Prepare for meeting — ${orgName ?? eng.title}`,
+        via: "sdr_automation",
+      });
     }
 
     res.json(format(eng, orgName, contactName, ownerName));
