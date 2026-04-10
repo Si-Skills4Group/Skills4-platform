@@ -1,0 +1,279 @@
+Redesign the SDR module of this CRM MVP so it feels like a modern SDR outreach workspace rather than a traditional CRM form system.
+
+Design inspiration:
+The UX should feel closer to Apollo / Salesloft / Outreach-style SDR tools:
+- funnel-first
+- queue-first
+- action-oriented
+- highly efficient for reps doing outbound work
+- fast to scan, fast to update, fast to move through prospects
+
+Do NOT build a generic admin CRUD page.
+Do NOT optimise for record maintenance first.
+Optimise for daily SDR productivity.
+
+PRIMARY GOAL
+Create an SDR workspace where a rep can:
+- see funnel counts instantly
+- filter prospects quickly
+- search contacts fast
+- sort by most recent activity
+- work through a call/email queue
+- update prospect state in one or two clicks
+- log outreach quickly
+- book meetings
+- mark qualified / unqualified
+- hand off qualified opportunities into the main engagement pipeline
+
+UX REQUIREMENTS
+
+1. TOP FUNNEL SUMMARY BAR
+At the top of the SDR page, create a horizontal funnel summary similar to a sales engagement platform.
+
+Show clickable status counters for:
+- Total
+- New
+- Researching
+- Contacted
+- Replied
+- Interested
+- Meeting Booked
+- Qualified
+- Nurture
+- Unresponsive
+- Do Not Contact
+- Bad Data
+- Changed Job
+- Disqualified
+
+Requirements:
+- each count acts as a filter
+- active selected stage is visually highlighted
+- counters should update dynamically based on current filters
+- use compact business styling, not oversized cards
+- allow horizontal scrolling if needed on smaller screens
+
+2. SDR WORK QUEUE LAYOUT
+Below the funnel summary, create the main SDR work queue.
+
+This should include:
+- a left filter toggle button
+- a compact action bar
+- a large search box
+- a sort dropdown
+- the prospect list/table underneath
+
+The page should feel like a rep’s day-to-day command centre.
+
+3. FILTER PANEL
+Create a collapsible filter panel for the SDR queue.
+
+Filters should include:
+- SDR stage
+- owner
+- lead source
+- organisation type
+- region
+- sector
+- next action due
+- meeting booked
+- qualification status
+- handover status
+- last activity date
+- overdue only
+- do not contact
+- bad data
+
+Keep filters fast and practical.
+Use chips, dropdowns, and date filters where useful.
+
+4. SEARCH + SORT
+Add a prominent search box with placeholder text like:
+"Search contacts, organisations, emails..."
+
+Add sorting options:
+- Contact last activity
+- Next action date
+- Recently created
+- Last outreach date
+- Highest touch count
+- Meeting date
+- Qualification priority
+
+Default sort:
+Contact last activity descending
+
+5. MAIN SDR LIST / TABLE
+The main list should feel operational and dense enough for productivity.
+
+Recommended columns:
+- checkbox
+- contact name
+- organisation
+- title
+- stage
+- owner
+- last activity
+- next action
+- touches
+- meeting booked
+- qualification status
+- handover status
+
+Requirements:
+- compact rows
+- colour-coded stage/status badges
+- overdue next actions highlighted clearly
+- row click opens side panel or detail drawer if feasible
+- support multi-select for future batch actions
+- keep it visually clean and easy to scan
+
+6. QUICK ACTION TOOLBAR
+Add fast actions for SDR reps.
+
+Include:
+- Log Call
+- Log Email
+- Log LinkedIn Touch
+- Change Stage
+- Create Follow-up Task
+- Book Meeting
+- Mark Interested
+- Mark Qualified
+- Mark Disqualified
+- Mark Do Not Contact
+
+Important:
+These actions should be available with minimal clicks.
+Prioritise rep speed over admin completeness.
+
+7. SDR DETAIL DRAWER / SIDE PANEL
+When a user clicks a prospect row, open a side panel or drawer instead of navigating away immediately.
+
+The side panel should show:
+- contact summary
+- organisation summary
+- current SDR stage
+- last activity
+- next action
+- notes
+- outreach timeline
+- qualification summary
+- quick actions
+
+This should let reps work quickly without losing queue context.
+
+8. OUTREACH TIMELINE
+Add a timeline/history section for each prospect.
+
+Show:
+- calls
+- emails
+- linkedin touches
+- meetings booked
+- stage changes
+- qualification events
+- handover events
+
+This should feel like an SDR activity feed.
+
+9. SDR STAGE MODEL
+Use this stage model:
+
+- New
+- Researching
+- Contacted
+- Replied
+- Interested
+- Meeting Booked
+- Qualified
+- Nurture
+- Unresponsive
+- Do Not Contact
+- Bad Data
+- Changed Job
+- Disqualified
+
+Make sure stage movement is easy and visible.
+
+10. QUALIFICATION + HANDOVER
+When a prospect is marked Qualified:
+- prompt for handover owner
+- create or update the main employer engagement record
+- copy across organisation, contact, notes, latest outreach summary, and meeting details
+- update handover status
+- create a follow-up task for the receiving owner
+
+When marked Disqualified:
+- require a disqualification reason
+
+When marked Bad Data or Changed Job:
+- prompt for optional notes and next clean-up action
+
+11. SDR DASHBOARD IMPROVEMENTS
+Add useful SDR metrics above or alongside the queue:
+
+- total active prospects
+- replies this week
+- meetings booked this week
+- qualified this month
+- overdue follow-ups
+- conversion from Contacted -> Replied
+- conversion from Replied -> Interested
+- conversion from Interested -> Meeting Booked
+- conversion from Meeting Booked -> Qualified
+
+Keep this lightweight and operational, not executive-heavy.
+
+12. UI FEEL
+The visual style should feel like:
+- Apollo / Outreach / modern SDR tools
+- more productivity workspace, less CRM admin
+- compact, fast, list-based, actionable
+- modern business SaaS styling
+
+Design requirements:
+- clean white / light grey content area
+- subtle blue accents aligned to the rest of the CRM
+- compact badges and counters
+- sticky top controls if possible
+- good spacing and typography
+- highly readable tables
+- no oversized cards unless clearly useful
+
+13. KEEP EXISTING DATA MODEL COMPATIBLE
+Do not break the current CRM MVP architecture.
+This SDR workspace should still map cleanly into the existing models:
+- Organisation
+- Contact
+- Engagement
+- Task
+- User
+
+Prefer extending the existing Engagement model for SDR workflow rather than inventing a completely disconnected module.
+
+14. MVP IMPLEMENTATION RULES
+This is still an MVP, so:
+- keep architecture clean
+- do not overcomplicate backend infrastructure
+- prioritise fast internal usability
+- keep code modular
+- keep future Dynamics 365 mapping in mind
+
+DELIVERABLES
+Please implement:
+- redesigned SDR workspace page
+- top funnel summary bar
+- collapsible filter panel
+- search and sorting
+- improved prospect queue table
+- quick action bar
+- side drawer/detail panel
+- stage/status badges
+- qualification + handover workflow
+- updated seed/demo data showing realistic SDR pipeline movement
+
+Also update the README briefly to explain:
+- the SDR workflow
+- the stage model
+- how qualified handover works

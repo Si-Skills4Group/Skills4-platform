@@ -18,30 +18,44 @@ import { useAuth } from "@/contexts/AuthContext";
 const STAGE_COLORS: Record<string, string> = {
   new:               "#94a3b8",
   researching:       "#60a5fa",
-  outreach_started:  "#a78bfa",
   contacted:         "#818cf8",
+  outreach_started:  "#a78bfa",
+  replied:           "#2dd4bf",
   response_received: "#2dd4bf",
+  interested:        "#22d3ee",
   meeting_booked:    "#fb923c",
   qualified:         "#34d399",
-  disqualified:      "#f87171",
   nurture:           "#fbbf24",
+  unresponsive:      "#9ca3af",
+  do_not_contact:    "#f87171",
+  bad_data:          "#fb7185",
+  changed_job:       "#a78bfa",
+  disqualified:      "#f87171",
 };
 
 const STAGE_LABELS: Record<string, string> = {
   new:               "New",
   researching:       "Researching",
-  outreach_started:  "Outreach Started",
   contacted:         "Contacted",
+  outreach_started:  "Outreach Started",
+  replied:           "Replied",
   response_received: "Response Rec'd",
+  interested:        "Interested",
   meeting_booked:    "Meeting Booked",
   qualified:         "Qualified",
-  disqualified:      "Disqualified",
   nurture:           "Nurture",
+  unresponsive:      "Unresponsive",
+  do_not_contact:    "Do Not Contact",
+  bad_data:          "Bad Data",
+  changed_job:       "Changed Job",
+  disqualified:      "Disqualified",
 };
 
 const STAGE_ORDER = [
-  "new", "researching", "outreach_started", "contacted",
-  "response_received", "meeting_booked", "qualified", "disqualified", "nurture",
+  "new", "researching", "contacted", "outreach_started",
+  "replied", "response_received", "interested",
+  "meeting_booked", "qualified",
+  "nurture", "unresponsive", "do_not_contact", "bad_data", "changed_job", "disqualified",
 ];
 
 const FUNNEL_COLORS = ["#60a5fa", "#818cf8", "#fb923c", "#34d399"];
@@ -147,9 +161,8 @@ export default function SdrDashboard() {
   const stageChartData = STAGE_ORDER
     .map((stage) => {
       const found = summary.prospectsByStage.find((r) => r.stage === stage);
-      return found ? { stage: STAGE_LABELS[stage] ?? stage, count: found.count, fill: STAGE_COLORS[stage] ?? "#94a3b8" } : null;
-    })
-    .filter(Boolean) as { stage: string; count: number; fill: string }[];
+      return { stage: STAGE_LABELS[stage] ?? stage, count: found?.count ?? 0, fill: STAGE_COLORS[stage] ?? "#94a3b8" };
+    });
 
   const funnelData = summary.conversionFunnel.map((item, i) => ({
     ...item,

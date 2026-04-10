@@ -213,6 +213,12 @@ router.put("/:id", requireMinRole("engagement_user"), async (req, res) => {
 
     const today = new Date().toISOString().split("T")[0];
 
+    // ── Automation 5: close status for terminal stages ────────────────────────
+    const TERMINAL_SDR_STAGES = new Set(["disqualified", "do_not_contact", "bad_data", "changed_job"]);
+    if (isSdr && body.sdrStage && TERMINAL_SDR_STAGES.has(body.sdrStage) && !TERMINAL_SDR_STAGES.has(before.sdrStage ?? "")) {
+      if (!body.status) body.status = "closed_lost";
+    }
+
     // ── Automation 2: stage → contacted auto-sets last_outreach_date ──────────
     // D365 migration: Power Automate flow on SDR stage field change to "contacted".
     if (isSdr && body.sdrStage === "contacted" && before.sdrStage !== "contacted") {

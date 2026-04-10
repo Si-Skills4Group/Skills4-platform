@@ -193,10 +193,16 @@ export const SdrStage = {
   outreach_started: "outreach_started",
   contacted: "contacted",
   response_received: "response_received",
+  replied: "replied",
+  interested: "interested",
   meeting_booked: "meeting_booked",
   qualified: "qualified",
-  disqualified: "disqualified",
   nurture: "nurture",
+  unresponsive: "unresponsive",
+  do_not_contact: "do_not_contact",
+  bad_data: "bad_data",
+  changed_job: "changed_job",
+  disqualified: "disqualified",
 } as const;
 
 export type OutreachChannel =

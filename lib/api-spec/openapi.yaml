@@ -929,7 +929,7 @@ components:
 
     SdrStage:
       type: string
-      enum: [new, researching, outreach_started, contacted, response_received, meeting_booked, qualified, disqualified, nurture]
+      enum: [new, researching, outreach_started, contacted, response_received, replied, interested, meeting_booked, qualified, nurture, unresponsive, do_not_contact, bad_data, changed_job, disqualified]
 
     OutreachChannel:
       type: string
