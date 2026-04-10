@@ -38,7 +38,8 @@ interface ProspectDrawerProps {
   isMutating: boolean;
 }
 
-function ActivityIcon({ action }: { action: string }) {
+function ActivityIcon({ action }: { action: string | null | undefined }) {
+  if (!action) return <Sparkles size={12} className="text-muted-foreground flex-shrink-0" />;
   if (action === "call_logged") return <PhoneCall size={12} className="text-violet-500 flex-shrink-0" />;
   if (action.includes("stage_changed")) return <ArrowRight size={12} className="text-blue-500 flex-shrink-0" />;
   if (action.includes("task_created")) return <CheckSquare size={12} className="text-emerald-500 flex-shrink-0" />;
@@ -47,7 +48,8 @@ function ActivityIcon({ action }: { action: string }) {
   return <Sparkles size={12} className="text-muted-foreground flex-shrink-0" />;
 }
 
-function formatActivity(action: string, context: Record<string, any> | null): string {
+function formatActivity(action: string | null | undefined, context: Record<string, any> | null): string {
+  if (!action) return "Activity logged";
   if (!context) return action.replace(/_/g, " ");
   switch (action) {
     case "engagement_created": return "Prospect added to SDR queue";
