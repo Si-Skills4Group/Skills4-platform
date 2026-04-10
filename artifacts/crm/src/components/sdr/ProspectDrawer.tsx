@@ -1,17 +1,29 @@
 import {
-  X, Mail, PhoneCall, Linkedin, CalendarCheck, Trophy, XCircle, Plus,
-  ArrowRight, Sparkles, CheckSquare, Star, Clock, Building2, User2,
-  Hash, Target, ChevronDown, RefreshCw, AlertTriangle, Send,
+  X, Mail, Linkedin, CalendarCheck, Trophy, XCircle, Plus,
+  ArrowRight, Sparkles, CheckSquare, Star, Phone,
+  RefreshCw, User2, Hash, Target, ChevronDown,
+  AlertTriangle, Send, PhoneCall, PhoneOff, Voicemail,
+  PhoneForwarded, Clock, CheckCircle2,
 } from "lucide-react";
 import { useListActivity } from "@workspace/api-client-react";
-import type { Engagement, OutreachChannel, SdrStage } from "@workspace/api-client-react";
+import type { Engagement, CallOutcome, SdrStage } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/core-ui";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
 import { formatDate, cn } from "@/lib/utils";
-import { getStageBadgeClass, getStageLabel, getStageDotColor, LEAD_SOURCES, isOverdue } from "./constants";
+import {
+  getStageBadgeClass, getStageLabel, getStageDotColor,
+  getCallOutcomeLabel, getCallOutcomeBadgeClass, getCallOutcomeDotColor,
+  LEAD_SOURCES, isOverdue, CALL_OUTCOME_CONFIG,
+} from "./constants";
 
-type DrawerAction =
-  | { type: "logOutreach"; eng: Engagement; channel: OutreachChannel }
+export type DrawerAction =
+  | { type: "logCallQuick"; eng: Engagement; outcome: CallOutcome }
+  | { type: "logCallDetailed"; eng: Engagement; outcome: CallOutcome }
+  | { type: "logEmail"; eng: Engagement }
+  | { type: "logLinkedin"; eng: Engagement }
   | { type: "meeting"; eng: Engagement }
   | { type: "qualify"; eng: Engagement }
   | { type: "disqualify"; eng: Engagement }
@@ -27,6 +39,7 @@ interface ProspectDrawerProps {
 }
 
 function ActivityIcon({ action }: { action: string }) {
+  if (action === "call_logged") return <PhoneCall size={12} className="text-violet-500 flex-shrink-0" />;
   if (action.includes("stage_changed")) return <ArrowRight size={12} className="text-blue-500 flex-shrink-0" />;
   if (action.includes("task_created")) return <CheckSquare size={12} className="text-emerald-500 flex-shrink-0" />;
   if (action.includes("engagement_created")) return <Star size={12} className="text-amber-500 flex-shrink-0" />;
@@ -44,7 +57,9 @@ function formatActivity(action: string, context: Record<string, any> | null): st
       }
       return "Stage updated";
     case "task_created":
-      return `Task created: ${context.taskTitle ?? "Follow-up"}${context.via ? ` (auto)` : ""}`;
+      return `Task: ${context.taskTitle ?? "Follow-up"}${context.via ? " (auto)" : ""}`;
+    case "call_logged":
+      return `Call logged: ${getCallOutcomeLabel(context.outcome)}${context.contactMade ? " ✓ Contact made" : ""}`;
     default:
       return action.replace(/_/g, " ");
   }
@@ -66,9 +81,20 @@ function InfoRow({ label, value, highlight }: { label: string; value: React.Reac
   return (
     <div>
       <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wide">{label}</p>
-      <p className={cn("text-sm font-medium mt-0.5", highlight ? "text-amber-600" : "text-foreground")}>{value}</p>
+      <p className={cn("text-sm font-medium mt-0.5 leading-snug", highlight ? "text-amber-600" : "text-foreground")}>{value}</p>
     </div>
   );
+}
+
+function CallOutcomeIcon({ outcome }: { outcome: string | null | undefined }) {
+  switch (outcome) {
+    case "no_answer": return <PhoneOff size={10} className="flex-shrink-0" />;
+    case "voicemail_left": return <Voicemail size={10} className="flex-shrink-0" />;
+    case "gatekeeper": return <PhoneForwarded size={10} className="flex-shrink-0" />;
+    case "meeting_booked": return <CalendarCheck size={10} className="flex-shrink-0" />;
+    case "spoke_interested": return <CheckCircle2 size={10} className="flex-shrink-0" />;
+    default: return <PhoneCall size={10} className="flex-shrink-0" />;
+  }
 }
 
 export function ProspectDrawer({ engagement, onClose, onAction, isMutating }: ProspectDrawerProps) {
@@ -77,11 +103,14 @@ export function ProspectDrawer({ engagement, onClose, onAction, isMutating }: Pr
 
   const { data: activities = [], isLoading: activitiesLoading } = useListActivity(
     { entityType: "engagement", entityId: engId },
-    { query: { enabled: open && engId > 0, staleTime: 30_000 } }
+    { query: { enabled: open && engId > 0, staleTime: 10_000 } }
   );
 
   const leadSourceLabel = LEAD_SOURCES.find((s) => s.value === engagement?.leadSource)?.label ?? engagement?.leadSource ?? null;
-  const nextActionOverdue = engagement ? isOverdue(engagement.nextActionDate) : false;
+  const nextOverdue = engagement ? isOverdue(engagement.nextCallDate ?? engagement.nextActionDate) : false;
+
+  const QUICK_OUTCOMES = CALL_OUTCOME_CONFIG.filter((o) => o.quick);
+  const DETAILED_OUTCOMES = CALL_OUTCOME_CONFIG.filter((o) => !o.quick);
 
   const TERMINAL_STAGES: SdrStage[] = ["unresponsive", "bad_data", "changed_job"];
 
@@ -99,7 +128,7 @@ export function ProspectDrawer({ engagement, onClose, onAction, isMutating }: Pr
       {/* Drawer panel */}
       <div className={cn(
         "fixed right-0 top-0 h-full bg-white shadow-xl z-50 flex flex-col transition-transform duration-200 ease-in-out",
-        "w-[420px] max-w-[95vw]",
+        "w-[440px] max-w-[95vw]",
         open ? "translate-x-0" : "translate-x-full"
       )}>
         {engagement ? (
@@ -107,25 +136,27 @@ export function ProspectDrawer({ engagement, onClose, onAction, isMutating }: Pr
             {/* ── Header ── */}
             <div className="flex items-start gap-3 p-4 border-b flex-shrink-0">
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 flex-wrap">
                   <span className={cn(
                     "inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border",
                     getStageBadgeClass(engagement.sdrStage)
                   )}>
-                    <span
-                      className="w-1.5 h-1.5 rounded-full mr-1.5 flex-shrink-0"
-                      style={{ backgroundColor: getStageDotColor(engagement.sdrStage) }}
-                    />
+                    <span className="w-1.5 h-1.5 rounded-full mr-1.5 flex-shrink-0" style={{ backgroundColor: getStageDotColor(engagement.sdrStage) }} />
                     {getStageLabel(engagement.sdrStage)}
                   </span>
-                  {engagement.meetingBooked && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border bg-orange-50 text-orange-700 border-orange-200">
-                      <CalendarCheck size={10} /> Meeting
+                  {engagement.contactMade && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border bg-sky-50 text-sky-700 border-sky-200">
+                      <PhoneCall size={9} /> Contact Made
                     </span>
                   )}
-                  {engagement.handoverStatus === "complete" && (
+                  {engagement.meetingBooked && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border bg-emerald-50 text-emerald-700 border-emerald-200">
-                      <Trophy size={10} /> Handed over
+                      <CalendarCheck size={9} /> Meeting
+                    </span>
+                  )}
+                  {engagement.sqlStatus && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border bg-green-50 text-green-700 border-green-200">
+                      <Trophy size={9} /> SQL
                     </span>
                   )}
                 </div>
@@ -141,51 +172,95 @@ export function ProspectDrawer({ engagement, onClose, onAction, isMutating }: Pr
                     )}
                   </p>
                 )}
+                {engagement.lastCallOutcome && (
+                  <div className="mt-1.5">
+                    <span className={cn(
+                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border",
+                      getCallOutcomeBadgeClass(engagement.lastCallOutcome)
+                    )}>
+                      <CallOutcomeIcon outcome={engagement.lastCallOutcome} />
+                      {getCallOutcomeLabel(engagement.lastCallOutcome)}
+                    </span>
+                    {engagement.callAttemptCount > 0 && (
+                      <span className="ml-1.5 text-[11px] text-muted-foreground">
+                        {engagement.callAttemptCount} call{engagement.callAttemptCount !== 1 ? "s" : ""}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
-              <button
-                onClick={onClose}
-                className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-              >
+              <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
                 <X size={16} />
               </button>
             </div>
 
-            {/* ── Quick Log Actions ── */}
+            {/* ── Call Log Actions ── */}
             <div className="flex items-center gap-1.5 px-4 py-2.5 border-b bg-slate-50/50 flex-shrink-0 flex-wrap">
-              <span className="text-[11px] font-semibold text-muted-foreground mr-1">Log:</span>
-              {([
-                { channel: "email" as OutreachChannel, icon: <Mail size={12} />, label: "Email" },
-                { channel: "phone" as OutreachChannel, icon: <PhoneCall size={12} />, label: "Call" },
-                { channel: "linkedin" as OutreachChannel, icon: <Linkedin size={12} />, label: "LinkedIn" },
-              ]).map(({ channel, icon, label }) => (
-                <button
-                  key={channel}
-                  onClick={() => onAction({ type: "logOutreach", eng: engagement, channel })}
-                  disabled={isMutating}
-                  className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md bg-white border hover:bg-muted hover:border-primary/30 transition-colors disabled:opacity-50"
-                >
-                  {icon} {label}
-                </button>
-              ))}
+              {/* Log Call Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    disabled={isMutating}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                  >
+                    <Phone size={12} /> Log Call <ChevronDown size={11} />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-52">
+                  <DropdownMenuLabel className="text-[11px] text-muted-foreground font-medium">No conversation</DropdownMenuLabel>
+                  {QUICK_OUTCOMES.map((o) => (
+                    <DropdownMenuItem
+                      key={o.value}
+                      className="text-xs gap-2"
+                      onClick={() => onAction({ type: "logCallQuick", eng: engagement, outcome: o.value })}
+                    >
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: o.dotColor }} />
+                      {o.label}
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-[11px] text-muted-foreground font-medium">Had a conversation</DropdownMenuLabel>
+                  {DETAILED_OUTCOMES.map((o) => (
+                    <DropdownMenuItem
+                      key={o.value}
+                      className="text-xs gap-2"
+                      onClick={() => onAction({ type: "logCallDetailed", eng: engagement, outcome: o.value })}
+                    >
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: o.dotColor }} />
+                      {o.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Quick email/linkedin */}
+              <button
+                onClick={() => onAction({ type: "logEmail", eng: engagement })}
+                disabled={isMutating}
+                className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1.5 rounded-md bg-white border hover:bg-muted hover:border-primary/30 transition-colors disabled:opacity-50"
+              >
+                <Mail size={12} /> Email
+              </button>
+              <button
+                onClick={() => onAction({ type: "logLinkedin", eng: engagement })}
+                disabled={isMutating}
+                className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1.5 rounded-md bg-white border hover:bg-muted hover:border-primary/30 transition-colors disabled:opacity-50"
+              >
+                <Linkedin size={12} /> LinkedIn
+              </button>
+
               <div className="flex-1" />
               <button
                 onClick={() => onAction({ type: "createTask", eng: engagement })}
                 disabled={isMutating}
-                className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md bg-white border hover:bg-muted transition-colors disabled:opacity-50"
+                className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1.5 rounded-md bg-white border hover:bg-muted transition-colors disabled:opacity-50"
               >
                 <Plus size={12} /> Task
               </button>
             </div>
 
             {/* ── Stage Actions ── */}
-            <div className="flex items-center gap-1.5 px-4 py-2.5 border-b bg-slate-50/50 flex-shrink-0 flex-wrap">
-              <button
-                onClick={() => onAction({ type: "meeting", eng: engagement })}
-                disabled={isMutating || !!engagement.meetingBooked}
-                className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md bg-white border hover:bg-orange-50 hover:text-orange-700 hover:border-orange-200 transition-colors disabled:opacity-40"
-              >
-                <CalendarCheck size={12} /> Book Meeting
-              </button>
+            <div className="flex items-center gap-1.5 px-4 py-2 border-b bg-slate-50/30 flex-shrink-0 flex-wrap">
               <button
                 onClick={() => onAction({ type: "changeStage", eng: engagement, stage: "interested" })}
                 disabled={isMutating || engagement.sdrStage === "interested"}
@@ -194,9 +269,16 @@ export function ProspectDrawer({ engagement, onClose, onAction, isMutating }: Pr
                 <Target size={12} /> Interested
               </button>
               <button
+                onClick={() => onAction({ type: "meeting", eng: engagement })}
+                disabled={isMutating || !!engagement.meetingBooked}
+                className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md bg-white border hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-colors disabled:opacity-40"
+              >
+                <CalendarCheck size={12} /> Book Meeting
+              </button>
+              <button
                 onClick={() => onAction({ type: "qualify", eng: engagement })}
                 disabled={isMutating || engagement.sdrStage === "qualified"}
-                className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md bg-white border hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-colors disabled:opacity-40"
+                className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md bg-white border hover:bg-green-50 hover:text-green-700 hover:border-green-200 transition-colors disabled:opacity-40"
               >
                 <Trophy size={12} /> Qualify
               </button>
@@ -209,34 +291,25 @@ export function ProspectDrawer({ engagement, onClose, onAction, isMutating }: Pr
               </button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button
-                    disabled={isMutating}
-                    className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md bg-white border hover:bg-muted transition-colors disabled:opacity-40"
-                  >
+                  <button disabled={isMutating} className="inline-flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md bg-white border hover:bg-muted transition-colors disabled:opacity-40">
                     More <ChevronDown size={11} />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-44">
-                  <DropdownMenuItem
-                    className="text-xs gap-2"
-                    onClick={() => onAction({ type: "changeStage", eng: engagement, stage: "nurture" })}
-                  >
-                    <span className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" /> Nurture
+                  <DropdownMenuItem className="text-xs gap-2" onClick={() => onAction({ type: "changeStage", eng: engagement, stage: "follow_up_required" })}>
+                    <span className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" /> Follow-up Required
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="text-xs gap-2" onClick={() => onAction({ type: "changeStage", eng: engagement, stage: "nurture" })}>
+                    <span className="w-2 h-2 rounded-full bg-indigo-400 flex-shrink-0" /> Nurture
                   </DropdownMenuItem>
                   {TERMINAL_STAGES.map((stage) => (
-                    <DropdownMenuItem
-                      key={stage}
-                      className="text-xs gap-2"
-                      onClick={() => onAction({ type: "changeStage", eng: engagement, stage })}
-                    >
+                    <DropdownMenuItem key={stage} className="text-xs gap-2" onClick={() => onAction({ type: "changeStage", eng: engagement, stage })}>
                       <span className="w-2 h-2 rounded-full bg-gray-400 flex-shrink-0" />
                       {getStageLabel(stage)}
                     </DropdownMenuItem>
                   ))}
-                  <DropdownMenuItem
-                    className="text-xs gap-2"
-                    onClick={() => onAction({ type: "openChangeStage", eng: engagement })}
-                  >
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="text-xs gap-2" onClick={() => onAction({ type: "openChangeStage", eng: engagement })}>
                     <ArrowRight size={12} /> Change stage…
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -247,55 +320,63 @@ export function ProspectDrawer({ engagement, onClose, onAction, isMutating }: Pr
             <div className="flex-1 overflow-y-auto">
               {/* Info grid */}
               <div className="px-4 py-4 grid grid-cols-2 gap-x-6 gap-y-4 border-b">
+                <InfoRow label="Lead source" value={leadSourceLabel ?? "—"} />
                 <InfoRow
-                  label="Lead source"
-                  value={leadSourceLabel ?? "—"}
-                />
-                <InfoRow
-                  label="Touch count"
+                  label="Calls made"
                   value={
                     <span className="flex items-center gap-1">
-                      <Hash size={12} className="text-muted-foreground" />
-                      {engagement.touchCount ?? 0} touches
+                      <Phone size={12} className="text-muted-foreground" />
+                      {engagement.callAttemptCount ?? 0} attempts
                     </span>
                   }
                 />
+                <InfoRow label="Last call" value={engagement.lastCallDate ? formatDate(engagement.lastCallDate) : "—"} />
                 <InfoRow
-                  label="Last outreach"
-                  value={engagement.lastOutreachDate ? formatDate(engagement.lastOutreachDate) : "—"}
+                  label="Total touches"
+                  value={
+                    <span className="flex items-center gap-1">
+                      <Hash size={12} className="text-muted-foreground" />
+                      {engagement.touchCount ?? 0}
+                    </span>
+                  }
                 />
-                <InfoRow
-                  label="Outreach channel"
-                  value={engagement.outreachChannel?.replace("_", " ") ?? "—"}
-                />
+                {engagement.nextCallDate && (
+                  <InfoRow
+                    label="Next call"
+                    value={formatDate(engagement.nextCallDate)}
+                    highlight={isOverdue(engagement.nextCallDate)}
+                  />
+                )}
                 {engagement.nextActionDate && (
                   <InfoRow
                     label="Next action"
                     value={formatDate(engagement.nextActionDate)}
-                    highlight={nextActionOverdue}
+                    highlight={isOverdue(engagement.nextActionDate)}
                   />
+                )}
+                {engagement.followUpReason && (
+                  <div className="col-span-2">
+                    <p className="text-[10px] uppercase font-semibold text-amber-600 tracking-wide">Follow-up context</p>
+                    <p className="text-sm text-foreground mt-0.5 leading-snug">{engagement.followUpReason}</p>
+                  </div>
                 )}
                 {engagement.meetingDate && (
-                  <InfoRow
-                    label="Meeting date"
-                    value={formatDate(engagement.meetingDate)}
-                  />
+                  <InfoRow label="Meeting date" value={formatDate(engagement.meetingDate)} />
                 )}
                 {engagement.handoverStatus && (
-                  <InfoRow
-                    label="Handover"
-                    value={
-                      <span className="capitalize">{engagement.handoverStatus.replace("_", " ")}</span>
-                    }
-                  />
-                )}
-                {engagement.handoverOwnerName && (
-                  <InfoRow
-                    label="Handover owner"
-                    value={engagement.handoverOwnerName}
-                  />
+                  <InfoRow label="Handover" value={<span className="capitalize">{engagement.handoverStatus.replace("_", " ")}</span>} />
                 )}
               </div>
+
+              {/* Latest note */}
+              {engagement.latestNote && (
+                <div className="px-4 py-3 border-b bg-amber-50/30">
+                  <p className="text-[10px] uppercase font-semibold text-amber-700 tracking-wide mb-1 flex items-center gap-1">
+                    <Clock size={10} /> Latest note
+                  </p>
+                  <p className="text-sm text-foreground leading-relaxed">{engagement.latestNote}</p>
+                </div>
+              )}
 
               {/* Notes */}
               {engagement.notes && (

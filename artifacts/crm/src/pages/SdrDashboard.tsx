@@ -18,28 +18,34 @@ import { useAuth } from "@/contexts/AuthContext";
 const STAGE_COLORS: Record<string, string> = {
   new:               "#94a3b8",
   researching:       "#60a5fa",
-  contacted:         "#818cf8",
-  outreach_started:  "#a78bfa",
+  attempted_call:    "#a78bfa",
+  contact_made:      "#38bdf8",
+  no_contact:        "#fb923c",
+  follow_up_required:"#f59e0b",
   replied:           "#2dd4bf",
-  response_received: "#2dd4bf",
   interested:        "#22d3ee",
-  meeting_booked:    "#fb923c",
-  qualified:         "#34d399",
-  nurture:           "#fbbf24",
+  meeting_booked:    "#34d399",
+  qualified:         "#4ade80",
+  nurture:           "#818cf8",
   unresponsive:      "#9ca3af",
   do_not_contact:    "#f87171",
   bad_data:          "#fb7185",
-  changed_job:       "#a78bfa",
+  changed_job:       "#e879f9",
   disqualified:      "#f87171",
+  // legacy
+  contacted:         "#818cf8",
+  outreach_started:  "#a78bfa",
+  response_received: "#2dd4bf",
 };
 
 const STAGE_LABELS: Record<string, string> = {
   new:               "New",
   researching:       "Researching",
-  contacted:         "Contacted",
-  outreach_started:  "Outreach Started",
+  attempted_call:    "Attempted Call",
+  contact_made:      "Contact Made",
+  no_contact:        "No Contact",
+  follow_up_required:"Follow-up Req'd",
   replied:           "Replied",
-  response_received: "Response Rec'd",
   interested:        "Interested",
   meeting_booked:    "Meeting Booked",
   qualified:         "Qualified",
@@ -49,13 +55,16 @@ const STAGE_LABELS: Record<string, string> = {
   bad_data:          "Bad Data",
   changed_job:       "Changed Job",
   disqualified:      "Disqualified",
+  contacted:         "Contacted",
+  outreach_started:  "Outreach Started",
+  response_received: "Response Rec'd",
 };
 
 const STAGE_ORDER = [
-  "new", "researching", "contacted", "outreach_started",
-  "replied", "response_received", "interested",
-  "meeting_booked", "qualified",
+  "new", "researching", "attempted_call", "contact_made", "no_contact", "follow_up_required",
+  "replied", "interested", "meeting_booked", "qualified",
   "nurture", "unresponsive", "do_not_contact", "bad_data", "changed_job", "disqualified",
+  "contacted", "outreach_started", "response_received",
 ];
 
 const FUNNEL_COLORS = ["#60a5fa", "#818cf8", "#fb923c", "#34d399"];

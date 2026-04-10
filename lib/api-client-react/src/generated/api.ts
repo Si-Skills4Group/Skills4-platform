@@ -33,6 +33,7 @@ import type {
   ListEngagementsParams,
   ListOrganisationsParams,
   ListTasksParams,
+  LogCallRequest,
   LoginRequest,
   LoginResponse,
   Organisation,
@@ -1825,6 +1826,93 @@ export const useDeleteEngagement = <
   TContext
 > => {
   return useMutation(getDeleteEngagementMutationOptions(options));
+};
+
+/**
+ * @summary Log a call attempt against an SDR engagement
+ */
+export const getLogCallUrl = (id: number) => {
+  return `/api/engagements/${id}/log-call`;
+};
+
+export const logCall = async (
+  id: number,
+  logCallRequest: LogCallRequest,
+  options?: RequestInit,
+): Promise<Engagement> => {
+  return customFetch<Engagement>(getLogCallUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(logCallRequest),
+  });
+};
+
+export const getLogCallMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof logCall>>,
+    TError,
+    { id: number; data: BodyType<LogCallRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof logCall>>,
+  TError,
+  { id: number; data: BodyType<LogCallRequest> },
+  TContext
+> => {
+  const mutationKey = ["logCall"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof logCall>>,
+    { id: number; data: BodyType<LogCallRequest> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return logCall(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LogCallMutationResult = NonNullable<
+  Awaited<ReturnType<typeof logCall>>
+>;
+export type LogCallMutationBody = BodyType<LogCallRequest>;
+export type LogCallMutationError = ErrorType<void>;
+
+/**
+ * @summary Log a call attempt against an SDR engagement
+ */
+export const useLogCall = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof logCall>>,
+    TError,
+    { id: number; data: BodyType<LogCallRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof logCall>>,
+  TError,
+  { id: number; data: BodyType<LogCallRequest> },
+  TContext
+> => {
+  return useMutation(getLogCallMutationOptions(options));
 };
 
 /**

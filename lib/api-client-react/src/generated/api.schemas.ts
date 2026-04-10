@@ -190,9 +190,10 @@ export type SdrStage = (typeof SdrStage)[keyof typeof SdrStage];
 export const SdrStage = {
   new: "new",
   researching: "researching",
-  outreach_started: "outreach_started",
-  contacted: "contacted",
-  response_received: "response_received",
+  attempted_call: "attempted_call",
+  contact_made: "contact_made",
+  no_contact: "no_contact",
+  follow_up_required: "follow_up_required",
   replied: "replied",
   interested: "interested",
   meeting_booked: "meeting_booked",
@@ -203,6 +204,23 @@ export const SdrStage = {
   bad_data: "bad_data",
   changed_job: "changed_job",
   disqualified: "disqualified",
+  outreach_started: "outreach_started",
+  contacted: "contacted",
+  response_received: "response_received",
+} as const;
+
+export type CallOutcome = (typeof CallOutcome)[keyof typeof CallOutcome];
+
+export const CallOutcome = {
+  no_answer: "no_answer",
+  voicemail_left: "voicemail_left",
+  gatekeeper: "gatekeeper",
+  wrong_person: "wrong_person",
+  spoke_call_back_later: "spoke_call_back_later",
+  spoke_send_info: "spoke_send_info",
+  spoke_not_interested: "spoke_not_interested",
+  spoke_interested: "spoke_interested",
+  meeting_booked: "meeting_booked",
 } as const;
 
 export type OutreachChannel =
@@ -260,6 +278,20 @@ export interface Engagement {
   handoverOwnerUserId?: number | null;
   handoverOwnerName?: string | null;
   handoverNotes?: string | null;
+  callAttemptCount: number;
+  lastCallDate?: string | null;
+  nextCallDate?: string | null;
+  lastCallOutcome?: CallOutcome | null;
+  contactMade: boolean;
+  voicemailLeft: boolean;
+  followUpRequired: boolean;
+  followUpReason?: string | null;
+  mqlStatus: boolean;
+  sqlStatus: boolean;
+  opportunityCreated: boolean;
+  latestNote?: string | null;
+  pitchDeckSent: boolean;
+  infoSentDate?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -293,6 +325,20 @@ export interface CreateEngagementRequest {
   handoverStatus?: HandoverStatus | null;
   handoverOwnerUserId?: number | null;
   handoverNotes?: string | null;
+  callAttemptCount?: number | null;
+  lastCallDate?: string | null;
+  nextCallDate?: string | null;
+  lastCallOutcome?: CallOutcome | null;
+  contactMade?: boolean | null;
+  voicemailLeft?: boolean | null;
+  followUpRequired?: boolean | null;
+  followUpReason?: string | null;
+  mqlStatus?: boolean | null;
+  sqlStatus?: boolean | null;
+  opportunityCreated?: boolean | null;
+  latestNote?: string | null;
+  pitchDeckSent?: boolean | null;
+  infoSentDate?: string | null;
 }
 
 export interface UpdateEngagementRequest {
@@ -324,6 +370,28 @@ export interface UpdateEngagementRequest {
   handoverStatus?: HandoverStatus | null;
   handoverOwnerUserId?: number | null;
   handoverNotes?: string | null;
+  callAttemptCount?: number | null;
+  lastCallDate?: string | null;
+  nextCallDate?: string | null;
+  lastCallOutcome?: CallOutcome | null;
+  contactMade?: boolean | null;
+  voicemailLeft?: boolean | null;
+  followUpRequired?: boolean | null;
+  followUpReason?: string | null;
+  mqlStatus?: boolean | null;
+  sqlStatus?: boolean | null;
+  opportunityCreated?: boolean | null;
+  latestNote?: string | null;
+  pitchDeckSent?: boolean | null;
+  infoSentDate?: string | null;
+}
+
+export interface LogCallRequest {
+  outcome: CallOutcome;
+  nextCallDate?: string | null;
+  followUpReason?: string | null;
+  latestNote?: string | null;
+  sdrStage?: SdrStage | null;
 }
 
 export type TaskStatus = (typeof TaskStatus)[keyof typeof TaskStatus];

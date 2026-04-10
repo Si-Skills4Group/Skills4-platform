@@ -1,0 +1,495 @@
+Redesign the SDR module of this CRM MVP so it reflects a real SDR operating workflow based on sales-management feedback.
+
+This is NOT a generic CRM pipeline.
+This is a practical SDR workspace that is primarily phone-led, task-led, and queue-led.
+
+CORE OPERATING MODEL
+
+The SDR workflow should be designed around:
+- call attempts
+- contact outcomes
+- scheduled follow-ups
+- meeting booking
+- qualification
+- handover into the main sales / employer engagement pipeline
+
+The module must support both:
+1. marketing/email-originated leads
+2. pure outbound call-led prospecting
+
+This means the SDR module should recognise important funnel junctions such as:
+- MQL (marketing qualified lead)
+- Meeting Booked
+- SQL (sales qualified lead)
+- Opportunity Created
+
+These junctions are critical for reporting.
+
+PRIMARY GOAL
+
+Build an SDR workspace where a rep can:
+- work through a daily queue
+- see new prospects and scheduled follow-ups in one place
+- log call attempts quickly
+- record whether contact was made or not
+- capture call outcomes
+- create follow-up tasks from real conversations
+- mark leads as warm, interested, booked, qualified, bad data, do not contact, etc.
+- hand qualified leads into the main engagement / opportunity pipeline
+
+IMPORTANT PRODUCT PRINCIPLE
+
+This module must feel like a call-led SDR cockpit, not like a traditional CRM admin page.
+
+Optimise for:
+- fast rep productivity
+- low click count
+- queue management
+- next action visibility
+- realistic SDR daily workflow
+
+Do NOT optimise primarily for:
+- record maintenance
+- over-detailed forms
+- marketing automation first
+- admin-heavy navigation
+
+--------------------------------------------------
+1. DATA MODEL CHANGES
+--------------------------------------------------
+
+Extend the existing Engagement model for SDR use.
+
+Add or update these fields:
+
+- engagement_type (SDR, Employer Engagement, Provider Engagement)
+- sdr_stage
+- lead_source
+- qualification_status
+- mql_status (boolean or derived)
+- sql_status (boolean or derived)
+- meeting_booked (boolean)
+- meeting_date
+- opportunity_created (boolean)
+- sdr_owner_user_id
+- handover_owner_user_id
+- handover_status
+- disqualification_reason
+- do_not_contact (boolean)
+- bad_data_flag (boolean)
+- changed_job_flag (boolean)
+
+Add call-specific tracking fields:
+- call_attempt_count
+- last_call_date
+- next_call_date
+- last_call_outcome
+- contact_made (boolean)
+- voicemail_left (boolean)
+- follow_up_required (boolean)
+- follow_up_reason
+- last_outreach_channel
+
+Add activity / note support:
+- latest_note
+- latest_summary
+- pitch_deck_sent (boolean)
+- info_sent_date
+
+CALL OUTCOME values should support:
+- No Answer
+- Voicemail Left
+- Gatekeeper
+- Wrong Person
+- Spoke – Call Back Later
+- Spoke – Send Information
+- Spoke – Not Interested
+- Spoke – Interested
+- Meeting Booked
+
+Keep the data model compatible with future Dynamics 365 mapping:
+- Organisation -> Account
+- Contact -> Contact
+- Engagement -> Opportunity or custom Engagement entity
+- Task -> Activity / Task
+- User -> CRM User / Owner
+
+--------------------------------------------------
+2. SDR STAGE MODEL
+--------------------------------------------------
+
+Replace the previous generic SDR stages with a more realistic phone-led SDR stage model.
+
+Use these SDR stages:
+
+- New
+- Researching
+- Attempted Call
+- Contact Made
+- No Contact
+- Follow-up Required
+- Replied
+- Interested
+- Meeting Booked
+- Qualified
+- Nurture
+- Unresponsive
+- Do Not Contact
+- Bad Data
+- Changed Job
+- Disqualified
+
+Important:
+- “Attempted Call” and “Contact Made” must be distinct
+- “No Contact” must be clearly visible
+- “Follow-up Required” must support warm callbacks and “send me info, call me later” scenarios
+- “Qualified” should represent SQL readiness
+- “Meeting Booked” should be a key milestone
+- “Bad Data”, “Changed Job”, and “Do Not Contact” should be operational end states
+
+--------------------------------------------------
+3. TOP FUNNEL SUMMARY BAR
+--------------------------------------------------
+
+At the top of the SDR workspace, build a horizontal funnel/status summary bar.
+
+Show clickable counters for:
+- Total
+- New
+- Attempted Call
+- Contact Made
+- No Contact
+- Follow-up Required
+- Replied
+- Interested
+- Meeting Booked
+- Qualified
+- Nurture
+- Unresponsive
+- Do Not Contact
+- Bad Data
+- Changed Job
+- Disqualified
+
+Requirements:
+- each counter acts as a filter
+- active state is visually highlighted
+- counts update dynamically based on active filters
+- compact business-style design
+- should feel similar to Apollo / Outreach / SDR tooling
+- support horizontal scrolling if needed
+
+--------------------------------------------------
+4. SDR WORK QUEUE
+--------------------------------------------------
+
+The main SDR page should be a queue-first operating screen.
+
+Layout should include:
+- top funnel summary bar
+- filter toggle
+- quick action toolbar
+- search box
+- sort dropdown
+- SDR prospect queue / table
+- optional side drawer for selected prospect
+
+The queue should include BOTH:
+- cold prospects
+- scheduled callbacks / follow-ups
+- warm follow-up leads
+- leads where information was sent and a callback is due
+
+This queue should NOT just be “all records”.
+It should feel like a practical worklist.
+
+Recommended columns:
+- checkbox
+- contact name
+- organisation
+- title
+- SDR stage
+- last call outcome
+- owner
+- last activity
+- next action
+- next call date
+- touches
+- meeting booked
+- qualification status
+- handover status
+
+Requirements:
+- compact rows
+- stage/status badges
+- overdue next actions highlighted
+- row click opens side drawer if feasible
+- support multi-select structure for future bulk actions
+
+--------------------------------------------------
+5. FILTERS
+--------------------------------------------------
+
+Create a collapsible filter panel.
+
+Include filters for:
+- SDR stage
+- owner
+- lead source
+- sector
+- region
+- next action due
+- next call date
+- meeting booked
+- qualified only
+- MQL only
+- SQL only
+- follow-up required
+- bad data
+- do not contact
+- changed job
+- overdue only
+- last activity date
+
+Use compact practical filters suitable for daily SDR work.
+
+--------------------------------------------------
+6. SEARCH + SORT
+--------------------------------------------------
+
+Add a prominent search box with placeholder:
+"Search contacts, organisations, notes..."
+
+Add sorting options:
+- Last activity
+- Next action date
+- Next call date
+- Recently created
+- Meeting date
+- Highest touch count
+- Qualification priority
+
+Default sort:
+Last activity descending
+
+--------------------------------------------------
+7. QUICK ACTIONS
+--------------------------------------------------
+
+Create an SDR quick action toolbar for speed.
+
+Include:
+- Log Call Attempt
+- Log Contact Made
+- Log No Contact
+- Log Voicemail
+- Send Information
+- Create Follow-up Task
+- Change Stage
+- Book Meeting
+- Mark Interested
+- Mark Qualified
+- Mark Disqualified
+- Mark Do Not Contact
+- Mark Bad Data
+- Mark Changed Job
+
+These actions should be very low-click and designed for rep productivity.
+
+--------------------------------------------------
+8. SIDE DRAWER / DETAIL PANEL
+--------------------------------------------------
+
+When a rep clicks a row, open a side drawer or panel if feasible.
+
+Show:
+- contact summary
+- organisation summary
+- SDR stage
+- call outcome history
+- last activity
+- next action
+- notes
+- outreach / activity timeline
+- qualification summary
+- quick actions
+
+This should allow the rep to work without constantly leaving the queue.
+
+--------------------------------------------------
+9. ACTIVITY / TOUCHPOINT MODEL
+--------------------------------------------------
+
+Treat “engagements” in practice as activity/touchpoint history.
+
+The SDR module must capture:
+- call attempts
+- connected calls
+- emails sent
+- information sent
+- meeting booking
+- stage changes
+- follow-up promises
+- notes from calls
+- potential future call recordings
+- pitch deck or info pack sent
+
+This should behave more like “activities” or “touchpoints” in practical sales terms.
+
+--------------------------------------------------
+10. FOLLOW-UP AND TASK LOGIC
+--------------------------------------------------
+
+Tasks must be central to the SDR workflow.
+
+This is a required operating principle.
+
+When a rep has a semi-warm call and the prospect says things like:
+- call me in 4 days
+- send me information
+- I’m busy, follow up next week
+
+The system must support:
+- creating a follow-up task immediately
+- surfacing that task in the queue
+- surfacing that task on the dashboard
+- linking that task to the organisation / contact / engagement
+
+Add logic so that:
+- follow-up required can be set from a call outcome
+- next call date can be captured quickly
+- tasks appear in “due today”, “overdue”, and “upcoming follow-ups”
+
+--------------------------------------------------
+11. MQL / SQL / OPPORTUNITY JUNCTIONS
+--------------------------------------------------
+
+Support key reporting junctions in the funnel.
+
+These are especially important:
+- MQL
+- Meeting Booked
+- SQL
+- Opportunity Created
+
+Use the following interpretation:
+- MQL = marketing/email interaction has indicated possible interest
+- SDR then works the lead by phone
+- Meeting Booked = key conversion point
+- SQL = meeting sat / confirmed as good lead
+- Opportunity Created = handover into main employer engagement / opportunity flow
+
+Support these flags and transitions clearly in the data model and UI.
+
+--------------------------------------------------
+12. HANDOVER LOGIC
+--------------------------------------------------
+
+When an SDR lead is marked Qualified / SQL:
+
+- prompt for handover owner
+- create or update the main employer engagement record
+- copy across:
+  - organisation
+  - contact
+  - latest notes
+  - latest outreach summary
+  - meeting details
+  - follow-up context
+- mark handover status
+- create a follow-up task for the receiving owner
+
+Important:
+Do not create duplicate organisations or contacts.
+
+--------------------------------------------------
+13. DASHBOARD METRICS
+--------------------------------------------------
+
+Add useful SDR operational metrics.
+
+Show:
+- total active prospects
+- call attempts today
+- contact made today
+- follow-ups due today
+- overdue follow-ups
+- meetings booked this week
+- qualified leads this month
+- bad data count
+- do not contact count
+
+Add simple conversion metrics:
+- New -> Attempted Call
+- Attempted Call -> Contact Made
+- Contact Made -> Follow-up Required
+- Contact Made -> Interested
+- Interested -> Meeting Booked
+- Meeting Booked -> Qualified
+- Qualified -> Opportunity Created
+
+Keep the dashboard operational and manager-friendly.
+
+--------------------------------------------------
+14. UI FEEL
+--------------------------------------------------
+
+The overall visual style should feel like:
+- Apollo / Outreach / SDR tooling
+- compact and fast
+- funnel-first
+- queue-first
+- action-first
+- not a generic CRM form page
+
+Design requirements:
+- clean white / light grey content area
+- subtle blue accents
+- compact counters
+- highly readable table
+- sticky top controls if practical
+- minimal wasted space
+- clear badges and statuses
+
+--------------------------------------------------
+15. SEED DATA
+--------------------------------------------------
+
+Update seed/demo data so it reflects realistic SDR usage.
+
+Include examples of:
+- fresh cold prospects
+- attempted calls with no answer
+- warm callbacks due in a few days
+- interested leads
+- meetings booked
+- qualified leads
+- bad data
+- changed job
+- do not contact
+- nurture leads
+
+Make the demo data tell a believable SDR story.
+
+--------------------------------------------------
+16. README / DOCUMENTATION
+--------------------------------------------------
+
+Update the README to explain:
+- SDR stage model
+- call outcome model
+- MQL / SQL logic
+- follow-up task handling
+- qualified handover process
+- future Dynamics 365 mapping
+
+--------------------------------------------------
+17. MVP CONSTRAINTS
+--------------------------------------------------
+
+Keep this as an MVP:
+- do not over-engineer infrastructure
+- do not add unnecessary enterprise complexity
+- keep code modular and clean
+- prioritise usability and clarity
+- maintain compatibility with future Dynamics 365 / Dataverse implementation

@@ -460,6 +460,35 @@ paths:
         "204":
           description: Deleted
 
+  /engagements/{id}/log-call:
+    post:
+      operationId: logCall
+      tags: [engagements]
+      summary: Log a call attempt against an SDR engagement
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogCallRequest"
+      responses:
+        "200":
+          description: Call logged, returns updated engagement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Engagement"
+        "400":
+          description: Bad request
+        "404":
+          description: Not found
+
   /engagements/{id}/handover:
     post:
       operationId: handoverEngagement
@@ -929,7 +958,11 @@ components:
 
     SdrStage:
       type: string
-      enum: [new, researching, outreach_started, contacted, response_received, replied, interested, meeting_booked, qualified, nurture, unresponsive, do_not_contact, bad_data, changed_job, disqualified]
+      enum: [new, researching, attempted_call, contact_made, no_contact, follow_up_required, replied, interested, meeting_booked, qualified, nurture, unresponsive, do_not_contact, bad_data, changed_job, disqualified, outreach_started, contacted, response_received]
+
+    CallOutcome:
+      type: string
+      enum: [no_answer, voicemail_left, gatekeeper, wrong_person, spoke_call_back_later, spoke_send_info, spoke_not_interested, spoke_interested, meeting_booked]
 
     OutreachChannel:
       type: string
@@ -1037,11 +1070,45 @@ components:
         handoverNotes:
           type: string
           nullable: true
+        callAttemptCount:
+          type: integer
+        lastCallDate:
+          type: string
+          nullable: true
+        nextCallDate:
+          type: string
+          nullable: true
+        lastCallOutcome:
+          $ref: "#/components/schemas/CallOutcome"
+          nullable: true
+        contactMade:
+          type: boolean
+        voicemailLeft:
+          type: boolean
+        followUpRequired:
+          type: boolean
+        followUpReason:
+          type: string
+          nullable: true
+        mqlStatus:
+          type: boolean
+        sqlStatus:
+          type: boolean
+        opportunityCreated:
+          type: boolean
+        latestNote:
+          type: string
+          nullable: true
+        pitchDeckSent:
+          type: boolean
+        infoSentDate:
+          type: string
+          nullable: true
         createdAt:
           type: string
         updatedAt:
           type: string
-      required: [id, title, stage, status, engagementType, touchCount, meetingBooked, createdAt, updatedAt]
+      required: [id, title, stage, status, engagementType, touchCount, meetingBooked, callAttemptCount, contactMade, voicemailLeft, followUpRequired, mqlStatus, sqlStatus, opportunityCreated, pitchDeckSent, createdAt, updatedAt]
 
     CreateEngagementRequest:
       type: object
@@ -1122,6 +1189,48 @@ components:
           type: integer
           nullable: true
         handoverNotes:
+          type: string
+          nullable: true
+        callAttemptCount:
+          type: integer
+          nullable: true
+        lastCallDate:
+          type: string
+          nullable: true
+        nextCallDate:
+          type: string
+          nullable: true
+        lastCallOutcome:
+          $ref: "#/components/schemas/CallOutcome"
+          nullable: true
+        contactMade:
+          type: boolean
+          nullable: true
+        voicemailLeft:
+          type: boolean
+          nullable: true
+        followUpRequired:
+          type: boolean
+          nullable: true
+        followUpReason:
+          type: string
+          nullable: true
+        mqlStatus:
+          type: boolean
+          nullable: true
+        sqlStatus:
+          type: boolean
+          nullable: true
+        opportunityCreated:
+          type: boolean
+          nullable: true
+        latestNote:
+          type: string
+          nullable: true
+        pitchDeckSent:
+          type: boolean
+          nullable: true
+        infoSentDate:
           type: string
           nullable: true
       required: [title, stage, status]
@@ -1207,6 +1316,67 @@ components:
         handoverNotes:
           type: string
           nullable: true
+        callAttemptCount:
+          type: integer
+          nullable: true
+        lastCallDate:
+          type: string
+          nullable: true
+        nextCallDate:
+          type: string
+          nullable: true
+        lastCallOutcome:
+          $ref: "#/components/schemas/CallOutcome"
+          nullable: true
+        contactMade:
+          type: boolean
+          nullable: true
+        voicemailLeft:
+          type: boolean
+          nullable: true
+        followUpRequired:
+          type: boolean
+          nullable: true
+        followUpReason:
+          type: string
+          nullable: true
+        mqlStatus:
+          type: boolean
+          nullable: true
+        sqlStatus:
+          type: boolean
+          nullable: true
+        opportunityCreated:
+          type: boolean
+          nullable: true
+        latestNote:
+          type: string
+          nullable: true
+        pitchDeckSent:
+          type: boolean
+          nullable: true
+        infoSentDate:
+          type: string
+          nullable: true
+
+    LogCallRequest:
+      type: object
+      properties:
+        outcome:
+          $ref: "#/components/schemas/CallOutcome"
+        nextCallDate:
+          type: string
+          nullable: true
+        followUpReason:
+          type: string
+          nullable: true
+        latestNote:
+          type: string
+          nullable: true
+        sdrStage:
+          $ref: "#/components/schemas/SdrStage"
+          nullable: true
+      required: [outcome]
 
     # --- Task ---
     TaskStatus:

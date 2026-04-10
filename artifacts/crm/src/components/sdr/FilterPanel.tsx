@@ -1,13 +1,16 @@
-import { X } from "lucide-react";
+import { X, Phone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Label, Select, SelectOption } from "@/components/ui/core-ui";
-import { LEAD_SOURCES } from "./constants";
+import { LEAD_SOURCES, CALL_OUTCOME_CONFIG } from "./constants";
 
 export interface FilterState {
   owner: string;
   leadSource: string;
   handoverStatus: string;
+  callOutcome: string;
   overdueOnly: boolean;
+  followUpRequired: boolean;
+  contactMadeOnly: boolean;
   meetingBooked: boolean;
   hasHandover: boolean;
 }
@@ -16,7 +19,10 @@ export const DEFAULT_FILTERS: FilterState = {
   owner: "",
   leadSource: "",
   handoverStatus: "",
+  callOutcome: "",
   overdueOnly: false,
+  followUpRequired: false,
+  contactMadeOnly: false,
   meetingBooked: false,
   hasHandover: false,
 };
@@ -26,7 +32,10 @@ function countActiveFilters(f: FilterState): number {
   if (f.owner) n++;
   if (f.leadSource) n++;
   if (f.handoverStatus) n++;
+  if (f.callOutcome) n++;
   if (f.overdueOnly) n++;
+  if (f.followUpRequired) n++;
+  if (f.contactMadeOnly) n++;
   if (f.meetingBooked) n++;
   if (f.hasHandover) n++;
   return n;
@@ -94,6 +103,17 @@ export function FilterPanel({ open, filters, onChange, users }: FilterPanelProps
             </Select>
           </div>
 
+          {/* Last Call Outcome */}
+          <div className="space-y-1.5">
+            <Label className="text-xs flex items-center gap-1"><Phone size={11} /> Last call outcome</Label>
+            <Select value={filters.callOutcome} onValueChange={(v) => set("callOutcome", v)} className="h-8 text-xs">
+              <SelectOption value="">Any outcome</SelectOption>
+              {CALL_OUTCOME_CONFIG.map((o) => (
+                <SelectOption key={o.value} value={o.value}>{o.label}</SelectOption>
+              ))}
+            </Select>
+          </div>
+
           {/* Handover status */}
           <div className="space-y-1.5">
             <Label className="text-xs">Handover status</Label>
@@ -111,11 +131,29 @@ export function FilterPanel({ open, filters, onChange, users }: FilterPanelProps
             <label className="flex items-center gap-2 cursor-pointer group">
               <input
                 type="checkbox"
+                checked={filters.followUpRequired}
+                onChange={(e) => set("followUpRequired", e.target.checked)}
+                className="rounded accent-primary"
+              />
+              <span className="text-xs text-foreground group-hover:text-primary transition-colors">Follow-up required</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer group">
+              <input
+                type="checkbox"
                 checked={filters.overdueOnly}
                 onChange={(e) => set("overdueOnly", e.target.checked)}
                 className="rounded accent-primary"
               />
-              <span className="text-xs text-foreground group-hover:text-primary transition-colors">Overdue only</span>
+              <span className="text-xs text-foreground group-hover:text-primary transition-colors">Overdue next call</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={filters.contactMadeOnly}
+                onChange={(e) => set("contactMadeOnly", e.target.checked)}
+                className="rounded accent-primary"
+              />
+              <span className="text-xs text-foreground group-hover:text-primary transition-colors">Contact made</span>
             </label>
             <label className="flex items-center gap-2 cursor-pointer group">
               <input

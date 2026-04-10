@@ -9,6 +9,7 @@
 export * from "./activityEventType";
 export * from "./activityLogEntry";
 export * from "./activityLogEntryMetadata";
+export * from "./callOutcome";
 export * from "./contact";
 export * from "./createContactRequest";
 export * from "./createEngagementRequest";
@@ -31,6 +32,7 @@ export * from "./listContactsParams";
 export * from "./listEngagementsParams";
 export * from "./listOrganisationsParams";
 export * from "./listTasksParams";
+export * from "./logCallRequest";
 export * from "./loginRequest";
 export * from "./loginResponse";
 export * from "./organisation";

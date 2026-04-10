@@ -11,9 +11,10 @@ export type SdrStage = (typeof SdrStage)[keyof typeof SdrStage];
 export const SdrStage = {
   new: "new",
   researching: "researching",
-  outreach_started: "outreach_started",
-  contacted: "contacted",
-  response_received: "response_received",
+  attempted_call: "attempted_call",
+  contact_made: "contact_made",
+  no_contact: "no_contact",
+  follow_up_required: "follow_up_required",
   replied: "replied",
   interested: "interested",
   meeting_booked: "meeting_booked",
@@ -24,4 +25,7 @@ export const SdrStage = {
   bad_data: "bad_data",
   changed_job: "changed_job",
   disqualified: "disqualified",
+  outreach_started: "outreach_started",
+  contacted: "contacted",
+  response_received: "response_received",
 } as const;

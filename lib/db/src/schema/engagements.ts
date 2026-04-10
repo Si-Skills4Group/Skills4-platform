@@ -18,7 +18,7 @@
  *
  * SDR fields (D365 custom fields on Opportunity or separate SDR entity):
  * - engagement_type        -> custom field: crm_engagementtype (SDR / Employer Engagement / Provider Engagement)
- * - sdr_stage              -> custom field: crm_sdrstage picklist (New / Researching / Outreach Started / Contacted / Response Received / Meeting Booked / Qualified / Disqualified / Nurture)
+ * - sdr_stage              -> custom field: crm_sdrstage picklist
  * - qualification_status   -> custom field: crm_qualificationstatus
  * - lead_source            -> leadsourcecode (mapped to OOB Lead Source picklist)
  * - sdr_owner_user_id      -> custom field: crm_sdrownerid (SystemUser lookup)
@@ -32,6 +32,22 @@
  * - handover_status        -> custom field: crm_handoverstatus (pending / in_progress / complete)
  * - handover_owner_user_id -> custom field: crm_handoverownerid (SystemUser lookup)
  * - handover_notes         -> custom field: crm_handovernotes
+ *
+ * Call-tracking SDR fields:
+ * - call_attempt_count     -> custom field: crm_callattemptcount
+ * - last_call_date         -> custom field: crm_lastcalldate
+ * - next_call_date         -> custom field: crm_nextcalldate
+ * - last_call_outcome      -> custom field: crm_lastcalloutcome (no_answer / voicemail_left / gatekeeper / wrong_person / spoke_call_back_later / spoke_send_info / spoke_not_interested / spoke_interested / meeting_booked)
+ * - contact_made           -> custom field: crm_contactmade (boolean)
+ * - voicemail_left         -> custom field: crm_voicemailleft (boolean)
+ * - follow_up_required     -> custom field: crm_followuprequired (boolean)
+ * - follow_up_reason       -> custom field: crm_followupreason
+ * - mql_status             -> custom field: crm_mqlstatus (boolean)
+ * - sql_status             -> custom field: crm_sqlstatus (boolean)
+ * - opportunity_created    -> custom field: crm_opportunitycreated (boolean)
+ * - latest_note            -> custom field: crm_latestnote
+ * - pitch_deck_sent        -> custom field: crm_pitchdecksent (boolean)
+ * - info_sent_date         -> custom field: crm_infosentdate
  */
 import { pgTable, text, serial, integer, numeric, timestamp, boolean, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
@@ -61,25 +77,37 @@ export const engagementsTable = pgTable(
     notes: text("notes"),
 
     // ─── SDR fields ──────────────────────────────────────────────────────────
-    // engagement_type: SDR | employer_engagement | provider_engagement
     engagementType: text("engagement_type").notNull().default("employer_engagement"),
-    // sdr_stage: new | researching | outreach_started | contacted | response_received | meeting_booked | qualified | disqualified | nurture
     sdrStage: text("sdr_stage"),
     qualificationStatus: text("qualification_status"),
     leadSource: text("lead_source"),
     sdrOwnerUserId: integer("sdr_owner_user_id").references(() => usersTable.id, { onDelete: "set null" }),
     lastOutreachDate: text("last_outreach_date"),
     nextOutreachDate: text("next_outreach_date"),
-    // outreach_channel: email | phone | linkedin | in_person | event
     outreachChannel: text("outreach_channel"),
     touchCount: integer("touch_count").notNull().default(0),
     meetingBooked: boolean("meeting_booked").notNull().default(false),
     meetingDate: text("meeting_date"),
     disqualificationReason: text("disqualification_reason"),
-    // handover_status: pending | in_progress | complete
     handoverStatus: text("handover_status"),
     handoverOwnerUserId: integer("handover_owner_user_id").references(() => usersTable.id, { onDelete: "set null" }),
     handoverNotes: text("handover_notes"),
+
+    // ─── Call-tracking SDR fields ─────────────────────────────────────────────
+    callAttemptCount: integer("call_attempt_count").notNull().default(0),
+    lastCallDate: text("last_call_date"),
+    nextCallDate: text("next_call_date"),
+    lastCallOutcome: text("last_call_outcome"),
+    contactMade: boolean("contact_made").notNull().default(false),
+    voicemailLeft: boolean("voicemail_left").notNull().default(false),
+    followUpRequired: boolean("follow_up_required").notNull().default(false),
+    followUpReason: text("follow_up_reason"),
+    mqlStatus: boolean("mql_status").notNull().default(false),
+    sqlStatus: boolean("sql_status").notNull().default(false),
+    opportunityCreated: boolean("opportunity_created").notNull().default(false),
+    latestNote: text("latest_note"),
+    pitchDeckSent: boolean("pitch_deck_sent").notNull().default(false),
+    infoSentDate: text("info_sent_date"),
 
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
@@ -94,6 +122,7 @@ export const engagementsTable = pgTable(
     index("engagements_sdr_stage_idx").on(t.sdrStage),
     index("engagements_sdr_owner_user_id_idx").on(t.sdrOwnerUserId),
     index("engagements_handover_owner_user_id_idx").on(t.handoverOwnerUserId),
+    index("engagements_next_call_date_idx").on(t.nextCallDate),
   ]
 );
 

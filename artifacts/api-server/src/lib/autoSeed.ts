@@ -287,6 +287,7 @@ async function seedSdrData(): Promise<void> {
   const sdrEngagements = await db
     .insert(engagementsTable)
     .values([
+      // 1. CloudNative — Researching (no calls yet)
       {
         organisationId: cloudNative.id,
         primaryContactId: rachelFoster.id,
@@ -298,8 +299,12 @@ async function seedSdrData(): Promise<void> {
         leadSource: "linkedin",
         status: "open",
         touchCount: 1,
+        outreachChannel: "linkedin",
+        callAttemptCount: 0,
         notes: "Researching the org ahead of first outreach. Strong levy payer.",
+        nextCallDate: addDays(2),
       },
+      // 2. JLR — Meeting Booked (3 calls, meeting confirmed)
       {
         organisationId: jlr.id,
         primaryContactId: davidOsei.id,
@@ -310,10 +315,19 @@ async function seedSdrData(): Promise<void> {
         sdrStage: "meeting_booked",
         leadSource: "referral",
         status: "open",
-        touchCount: 4,
+        touchCount: 5,
+        outreachChannel: "phone",
+        callAttemptCount: 3,
+        contactMade: true,
+        meetingBooked: true,
+        lastCallDate: addDays(-3),
+        lastCallOutcome: "meeting_booked",
+        meetingDate: addDays(4),
         lastOutreachDate: addDays(-3),
+        latestNote: "David confirmed meeting for Thursday — sending agenda today.",
         notes: "Meeting confirmed. David Osei is the key stakeholder.",
       },
+      // 3. Aviva — Follow-up Required (spoke, sending info)
       {
         organisationId: aviva.id,
         primaryContactId: natalieChambers.id,
@@ -321,13 +335,23 @@ async function seedSdrData(): Promise<void> {
         sdrOwnerUserId: james.id,
         engagementType: "sdr",
         title: "Aviva UK — SDR",
-        sdrStage: "response_received",
+        sdrStage: "follow_up_required",
         leadSource: "cold_email",
         status: "open",
-        touchCount: 3,
+        touchCount: 4,
+        outreachChannel: "phone",
+        callAttemptCount: 2,
+        contactMade: true,
+        followUpRequired: true,
+        lastCallDate: addDays(-5),
+        lastCallOutcome: "spoke_send_info",
+        nextCallDate: addDays(3),
+        followUpReason: "Natalie requested programme overview — sending this week then calling back",
         lastOutreachDate: addDays(-5),
+        pitchDeckSent: false,
         notes: "Natalie responded — requested programme overview. Sending this week.",
       },
+      // 4. BT — Attempted Call (4 attempts, voicemail)
       {
         organisationId: bt.id,
         primaryContactId: michaelKhan.id,
@@ -335,13 +359,22 @@ async function seedSdrData(): Promise<void> {
         sdrOwnerUserId: priya.id,
         engagementType: "sdr",
         title: "BT Group — SDR",
-        sdrStage: "outreach_started",
+        sdrStage: "attempted_call",
         leadSource: "cold_call",
         status: "open",
-        touchCount: 2,
-        lastOutreachDate: addDays(-18),
-        notes: "Initial call went well but follow-up emails unanswered for 2+ weeks.",
+        touchCount: 4,
+        outreachChannel: "phone",
+        callAttemptCount: 4,
+        contactMade: false,
+        voicemailLeft: true,
+        lastCallDate: addDays(-2),
+        lastCallOutcome: "voicemail_left",
+        nextCallDate: addDays(1),
+        lastOutreachDate: addDays(-2),
+        latestNote: "4th attempt — voicemail left again. Try LinkedIn message.",
+        notes: "Cannot reach Michael Khan by phone. Voicemail left 3×. Trying LinkedIn.",
       },
+      // 5. Aston Martin — Disqualified
       {
         organisationId: astonMartin.id,
         primaryContactId: sophieWhitfield.id,
@@ -353,10 +386,16 @@ async function seedSdrData(): Promise<void> {
         leadSource: "event",
         status: "closed_lost",
         touchCount: 3,
+        outreachChannel: "phone",
+        callAttemptCount: 2,
+        contactMade: true,
+        lastCallDate: addDays(-20),
+        lastCallOutcome: "spoke_not_interested",
         lastOutreachDate: addDays(-20),
         disqualificationReason: "No apprenticeship budget allocated for this fiscal year. Contact suggested revisiting in April next year.",
         notes: "Good relationship established. Re-add to pipeline in Q1 next year.",
       },
+      // 6. NHS — Contact Made (follow-up scheduled)
       {
         organisationId: nhsUniv.id,
         primaryContactId: drAmir.id,
@@ -364,13 +403,22 @@ async function seedSdrData(): Promise<void> {
         sdrOwnerUserId: sarah.id,
         engagementType: "sdr",
         title: "NHS University Hospitals — SDR",
-        sdrStage: "contacted",
+        sdrStage: "follow_up_required",
         leadSource: "referral",
         status: "open",
-        touchCount: 2,
+        touchCount: 3,
+        outreachChannel: "phone",
+        callAttemptCount: 2,
+        contactMade: true,
+        followUpRequired: true,
+        lastCallDate: addDays(-8),
+        lastCallOutcome: "spoke_call_back_later",
+        nextCallDate: addDays(-1),
+        followUpReason: "Dr Patel asked to call back after board meeting — follow-up OVERDUE",
         lastOutreachDate: addDays(-8),
         notes: "Referral from existing NHS contact. Dr. Patel is very responsive.",
       },
+      // 7. West Midlands Police — New (no calls)
       {
         organisationId: wmPolice.id,
         primaryContactId: chiefBurgess.id,
@@ -382,8 +430,11 @@ async function seedSdrData(): Promise<void> {
         leadSource: "event",
         status: "open",
         touchCount: 0,
+        callAttemptCount: 0,
+        nextCallDate: addDays(0),
         notes: "New lead from public sector forum. No outreach started yet.",
       },
+      // 8. Barclays — Contact Made (interested, nurturing)
       {
         organisationId: barclays.id,
         primaryContactId: fionaDrummond.id,
@@ -391,13 +442,21 @@ async function seedSdrData(): Promise<void> {
         sdrOwnerUserId: james.id,
         engagementType: "sdr",
         title: "Barclays Bank — SDR",
-        sdrStage: "nurture",
+        sdrStage: "interested",
         leadSource: "linkedin",
         status: "open",
         touchCount: 5,
-        lastOutreachDate: addDays(-30),
-        notes: "On nurture list pending Q3 budget decision. Schedule a check-in call for August.",
+        outreachChannel: "phone",
+        callAttemptCount: 3,
+        contactMade: true,
+        lastCallDate: addDays(-7),
+        lastCallOutcome: "spoke_interested",
+        nextCallDate: addDays(7),
+        lastOutreachDate: addDays(-7),
+        latestNote: "Fiona confirmed they are interested — budget review in Q3. Schedule follow-up for August.",
+        notes: "Interested but pending Q3 budget decision. Follow-up call scheduled for August.",
       },
+      // 9. Rolls-Royce — Qualified (SQL, handed over)
       {
         organisationId: rollsRoyce.id,
         primaryContactId: jonathanMercer.id,
@@ -410,10 +469,20 @@ async function seedSdrData(): Promise<void> {
         leadSource: "referral",
         status: "open",
         handoverStatus: "complete",
-        touchCount: 6,
+        touchCount: 7,
+        outreachChannel: "phone",
+        callAttemptCount: 4,
+        contactMade: true,
+        meetingBooked: true,
+        sqlStatus: true,
+        opportunityCreated: true,
+        lastCallDate: addDays(-4),
+        lastCallOutcome: "meeting_booked",
         lastOutreachDate: addDays(-4),
+        latestNote: "Jonathan confirmed they want to proceed — handed over to employer engagement team.",
         notes: "Fully qualified. Handed over to employer engagement team. High-value engineering apprenticeship opportunity.",
       },
+      // 10. Midlands Co-op — No Contact (gatekeeper blocking)
       {
         organisationId: midlandsCoop.id,
         primaryContactId: brendaHollis.id,
@@ -421,12 +490,19 @@ async function seedSdrData(): Promise<void> {
         sdrOwnerUserId: priya.id,
         engagementType: "sdr",
         title: "Midlands Co-operative Society — SDR",
-        sdrStage: "outreach_started",
+        sdrStage: "no_contact",
         leadSource: "cold_email",
         status: "open",
-        touchCount: 2,
-        lastOutreachDate: addDays(-21),
-        notes: "Outreach started 3 weeks ago — contact has gone cold. Re-engage urgently.",
+        touchCount: 5,
+        outreachChannel: "phone",
+        callAttemptCount: 5,
+        contactMade: false,
+        lastCallDate: addDays(-3),
+        lastCallOutcome: "gatekeeper",
+        nextCallDate: addDays(-4),
+        lastOutreachDate: addDays(-3),
+        latestNote: "Gatekeeper won't put through — try direct LinkedIn message to Brenda.",
+        notes: "5 call attempts blocked by gatekeepers. Switching to direct LinkedIn outreach.",
       },
     ])
     .returning();
@@ -542,6 +618,79 @@ async function seedSdrData(): Promise<void> {
 
   logger.info({ count: 9 }, "Seeded SDR tasks");
   logger.info("SDR demo seed complete — 10 prospects ready");
+}
+
+// ── Backfill call-tracking fields ──────────────────────────────────────────────
+// Idempotent: only updates records where callAttemptCount is NULL.
+// Allows existing seeded DBs to get call tracking data without a full re-seed.
+async function backfillCallTrackingData(): Promise<void> {
+  const { inArray, isNull } = await import("drizzle-orm");
+
+  const staleRecords = await db
+    .select({ id: engagementsTable.id, sdrStage: engagementsTable.sdrStage, organisationId: engagementsTable.organisationId })
+    .from(engagementsTable)
+    .where(
+      sql`${engagementsTable.engagementType} = 'sdr' AND ${engagementsTable.callAttemptCount} IS NULL`
+    );
+
+  if (staleRecords.length === 0) return;
+
+  logger.info({ count: staleRecords.length }, "Backfilling call tracking fields on existing SDR records…");
+
+  // Determine appropriate call tracking data for each stage
+  for (const rec of staleRecords) {
+    const stage = rec.sdrStage ?? "new";
+    let updates: Record<string, any> = { callAttemptCount: 0 };
+
+    switch (stage) {
+      case "attempted_call":
+      case "outreach_started":
+        updates = { callAttemptCount: 2, voicemailLeft: true, lastCallOutcome: "voicemail_left", contactMade: false, nextCallDate: addDays(1), outreachChannel: "phone" };
+        break;
+      case "contact_made":
+      case "contacted":
+        updates = { callAttemptCount: 2, contactMade: true, lastCallOutcome: "spoke_not_interested", outreachChannel: "phone" };
+        break;
+      case "follow_up_required":
+        updates = { callAttemptCount: 2, contactMade: true, followUpRequired: true, lastCallOutcome: "spoke_call_back_later", nextCallDate: addDays(3), outreachChannel: "phone" };
+        break;
+      case "no_contact":
+        updates = { callAttemptCount: 4, contactMade: false, lastCallOutcome: "gatekeeper", nextCallDate: addDays(2), outreachChannel: "phone" };
+        break;
+      case "reply":
+      case "replied":
+      case "response_received":
+        updates = { callAttemptCount: 1, contactMade: true, lastCallOutcome: "spoke_send_info", outreachChannel: "phone" };
+        break;
+      case "interested":
+        updates = { callAttemptCount: 2, contactMade: true, lastCallOutcome: "spoke_interested", nextCallDate: addDays(7), outreachChannel: "phone" };
+        break;
+      case "meeting_booked":
+        updates = { callAttemptCount: 3, contactMade: true, meetingBooked: true, lastCallOutcome: "meeting_booked", outreachChannel: "phone" };
+        break;
+      case "qualified":
+        updates = { callAttemptCount: 4, contactMade: true, sqlStatus: true, meetingBooked: true, lastCallOutcome: "meeting_booked", outreachChannel: "phone" };
+        break;
+      case "nurture":
+        updates = { callAttemptCount: 3, contactMade: true, lastCallOutcome: "spoke_call_back_later", outreachChannel: "phone" };
+        break;
+      case "unresponsive":
+        updates = { callAttemptCount: 6, contactMade: false, lastCallOutcome: "no_answer", outreachChannel: "phone" };
+        break;
+      case "disqualified":
+      case "do_not_contact":
+        updates = { callAttemptCount: 2, contactMade: true, lastCallOutcome: "spoke_not_interested", outreachChannel: "phone" };
+        break;
+      default:
+        updates = { callAttemptCount: 0 };
+    }
+
+    await db.update(engagementsTable)
+      .set({ ...updates, lastCallDate: updates.callAttemptCount > 0 ? addDays(-7) : null, updatedAt: new Date() })
+      .where(eq(engagementsTable.id, rec.id));
+  }
+
+  logger.info({ count: staleRecords.length }, "Call tracking backfill complete");
 }
 
 export async function autoSeed(): Promise<void> {
@@ -955,6 +1104,8 @@ export async function autoSeed(): Promise<void> {
 
     // Always check for and seed SDR demo data (idempotent — skips if already present)
     await seedSdrData();
+    // Backfill call tracking fields for any existing records that pre-date this feature
+    await backfillCallTrackingData();
   } catch (err) {
     logger.error({ err }, "Auto-seed failed — continuing startup");
   }

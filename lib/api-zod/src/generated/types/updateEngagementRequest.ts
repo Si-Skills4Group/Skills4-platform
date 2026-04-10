@@ -5,6 +5,7 @@
  * Employer Engagement CRM API — Skills4CRM
  * OpenAPI spec version: 0.2.0
  */
+import type { CallOutcome } from "./callOutcome";
 import type { EngagementStage } from "./engagementStage";
 import type { EngagementStatus } from "./engagementStatus";
 import type { EngagementType } from "./engagementType";
@@ -41,4 +42,18 @@ export interface UpdateEngagementRequest {
   handoverStatus?: HandoverStatus | null;
   handoverOwnerUserId?: number | null;
   handoverNotes?: string | null;
+  callAttemptCount?: number | null;
+  lastCallDate?: string | null;
+  nextCallDate?: string | null;
+  lastCallOutcome?: CallOutcome | null;
+  contactMade?: boolean | null;
+  voicemailLeft?: boolean | null;
+  followUpRequired?: boolean | null;
+  followUpReason?: string | null;
+  mqlStatus?: boolean | null;
+  sqlStatus?: boolean | null;
+  opportunityCreated?: boolean | null;
+  latestNote?: string | null;
+  pitchDeckSent?: boolean | null;
+  infoSentDate?: string | null;
 }

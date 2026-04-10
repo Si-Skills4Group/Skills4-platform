@@ -1,13 +1,14 @@
 import { useState, useEffect, useMemo } from "react";
 import {
-  SlidersHorizontal, Search, RefreshCw, Plus, ChevronDown,
-  CalendarCheck, AlertTriangle, Trophy, ArrowUpDown,
+  SlidersHorizontal, Search, RefreshCw, ArrowUpDown, ChevronDown,
+  CalendarCheck, AlertTriangle, Trophy, Phone, PhoneCall, PhoneOff,
+  Voicemail, PhoneForwarded, CheckCircle2, Plus,
 } from "lucide-react";
 import {
   useListEngagements, useUpdateEngagement, useCreateTask,
-  useListUsers, useHandoverEngagement,
+  useListUsers, useHandoverEngagement, useLogCall,
 } from "@workspace/api-client-react";
-import type { Engagement, SdrStage, OutreachChannel } from "@workspace/api-client-react";
+import type { Engagement, SdrStage, CallOutcome } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Button, Input, Textarea, Label, Select, SelectOption,
@@ -17,28 +18,128 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Modal } from "@/components/ui/Modal";
 import { formatDate, cn } from "@/lib/utils";
-import { usePermissions } from "@/hooks/usePermissions";
 import {
   FunnelBar,
   FilterPanel, type FilterState, DEFAULT_FILTERS, countActiveFilters,
-  ProspectDrawer,
+  ProspectDrawer, type DrawerAction,
 } from "@/components/sdr";
 import {
   getStageBadgeClass, getStageLabel, getStageDotColor,
+  getCallOutcomeLabel, getCallOutcomeBadgeClass, getCallOutcomeDotColor,
   isOverdue, ALL_STAGES_NO_LEGACY, SORT_OPTIONS, today,
+  CALL_OUTCOME_CONFIG,
 } from "@/components/sdr/constants";
 
 // ─── Modal state types ────────────────────────────────────────────────────────
 
 type ActiveModal =
-  | { type: "meeting";    eng: Engagement }
-  | { type: "disqualify"; eng: Engagement }
-  | { type: "task";       eng: Engagement }
-  | { type: "stage";      eng: Engagement }
-  | { type: "handover";   eng: Engagement }
+  | { type: "meeting";     eng: Engagement }
+  | { type: "disqualify";  eng: Engagement }
+  | { type: "task";        eng: Engagement }
+  | { type: "stage";       eng: Engagement }
+  | { type: "handover";    eng: Engagement }
+  | { type: "logCall";     eng: Engagement; presetOutcome?: CallOutcome }
   | null;
 
-// ─── Meeting Modal ─────────────────────────────────────────────────────────────
+// ─── Log Call Modal ───────────────────────────────────────────────────────────
+
+function LogCallModal({ open, onClose, engagement, presetOutcome, onConfirm, loading }: {
+  open: boolean; onClose: () => void; engagement: Engagement | null;
+  presetOutcome?: CallOutcome;
+  onConfirm: (outcome: CallOutcome, nextCallDate: string, note: string, followUpReason: string) => void;
+  loading: boolean;
+}) {
+  const [outcome, setOutcome] = useState<CallOutcome>("no_answer");
+  const [nextCallDate, setNextCallDate] = useState("");
+  const [note, setNote] = useState("");
+  const [followUpReason, setFollowUpReason] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setOutcome(presetOutcome ?? "no_answer");
+      setNextCallDate(""); setNote(""); setFollowUpReason("");
+    }
+  }, [open, presetOutcome]);
+
+  const needsFollowUp = outcome === "spoke_call_back_later" || outcome === "spoke_send_info" || outcome === "meeting_booked";
+  const outcomeConfig = CALL_OUTCOME_CONFIG.find((o) => o.value === outcome);
+
+  return (
+    <Modal open={open} onClose={onClose} title="Log Call" size="sm">
+      <div className="p-6 space-y-4">
+        {engagement && (
+          <div className="rounded-lg bg-muted/50 border px-3 py-2.5 space-y-0.5 text-sm">
+            <div className="font-semibold">{engagement.organisationName ?? engagement.title}</div>
+            {engagement.contactName && <div className="text-muted-foreground text-xs">{engagement.contactName}</div>}
+          </div>
+        )}
+
+        <div className="space-y-1.5">
+          <Label>Call outcome <span className="text-destructive">*</span></Label>
+          <Select value={outcome} onValueChange={(v) => setOutcome(v as CallOutcome)}>
+            <SelectOption value="" disabled>Select outcome…</SelectOption>
+            <SelectOption value="no_answer">No Answer</SelectOption>
+            <SelectOption value="voicemail_left">Voicemail Left</SelectOption>
+            <SelectOption value="gatekeeper">Gatekeeper</SelectOption>
+            <SelectOption value="wrong_person">Wrong Person</SelectOption>
+            <SelectOption value="spoke_call_back_later">Spoke – Call Back Later</SelectOption>
+            <SelectOption value="spoke_send_info">Spoke – Send Info</SelectOption>
+            <SelectOption value="spoke_not_interested">Spoke – Not Interested</SelectOption>
+            <SelectOption value="spoke_interested">Spoke – Interested</SelectOption>
+            <SelectOption value="meeting_booked">Meeting Booked</SelectOption>
+          </Select>
+          {outcomeConfig && (
+            <p className="text-xs text-muted-foreground">
+              {outcome === "no_answer" && "Will move stage to Attempted Call"}
+              {outcome === "voicemail_left" && "Will move stage to Attempted Call"}
+              {outcome === "gatekeeper" && "Will move stage to Attempted Call"}
+              {outcome === "wrong_person" && "Will move stage to No Contact"}
+              {outcome === "spoke_call_back_later" && "Will move stage to Follow-up Required"}
+              {outcome === "spoke_send_info" && "Will move stage to Follow-up Required"}
+              {outcome === "spoke_not_interested" && "Will move stage to Contact Made"}
+              {outcome === "spoke_interested" && "Will move stage to Interested"}
+              {outcome === "meeting_booked" && "Will move stage to Meeting Booked"}
+            </p>
+          )}
+        </div>
+
+        {needsFollowUp && (
+          <div className="space-y-1.5">
+            <Label>{outcome === "meeting_booked" ? "Meeting date" : "Follow-up / call-back date"} <span className="text-destructive">*</span></Label>
+            <Input type="date" value={nextCallDate} onChange={(e) => setNextCallDate(e.target.value)} />
+          </div>
+        )}
+
+        {(outcome === "spoke_call_back_later" || outcome === "spoke_send_info") && (
+          <div className="space-y-1.5">
+            <Label>Reason / context <span className="text-muted-foreground font-normal">(optional)</span></Label>
+            <Input value={followUpReason} onChange={(e) => setFollowUpReason(e.target.value)} placeholder='e.g. "Interested but busy — call in 4 days"' />
+          </div>
+        )}
+
+        <div className="space-y-1.5">
+          <Label>Call note <span className="text-muted-foreground font-normal">(optional)</span></Label>
+          <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Brief notes from the call…" />
+        </div>
+
+        <div className="flex gap-2 justify-end pt-1">
+          <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+          <Button
+            size="sm"
+            onClick={() => onConfirm(outcome, nextCallDate, note, followUpReason)}
+            disabled={loading || !outcome || (needsFollowUp && !nextCallDate)}
+            className="gap-1.5"
+          >
+            {loading ? <RefreshCw size={13} className="animate-spin" /> : <Phone size={13} />}
+            Log Call
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ─── Meeting Modal ────────────────────────────────────────────────────────────
 
 function MeetingModal({ open, onClose, onConfirm, loading }: {
   open: boolean; onClose: () => void; onConfirm: (date: string) => void; loading: boolean;
@@ -75,13 +176,10 @@ function DisqualifyModal({ open, onClose, onConfirm, loading }: {
         <div className="space-y-1.5">
           <Label>Reason <span className="text-destructive">*</span></Label>
           <Textarea rows={3} placeholder="e.g. No budget, wrong sector, not decision-maker…" value={reason} onChange={(e) => setReason(e.target.value)} />
-          <p className="text-xs text-muted-foreground">A reason is required to disqualify.</p>
         </div>
         <div className="flex gap-2 justify-end">
           <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
-          <Button size="sm" variant="destructive" onClick={() => onConfirm(reason)} disabled={loading || !reason.trim()}>
-            Disqualify
-          </Button>
+          <Button size="sm" variant="destructive" onClick={() => onConfirm(reason)} disabled={loading || !reason.trim()}>Disqualify</Button>
         </div>
       </div>
     </Modal>
@@ -103,14 +201,8 @@ function CreateTaskModal({ open, onClose, engagement, onConfirm, loading }: {
   return (
     <Modal open={open} onClose={onClose} title="Create Follow-up Task" size="sm">
       <div className="p-6 space-y-4">
-        <div className="space-y-1.5">
-          <Label>Task title</Label>
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Call Neil Barker" />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Due date</Label>
-          <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-        </div>
+        <div className="space-y-1.5"><Label>Task title</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} /></div>
+        <div className="space-y-1.5"><Label>Due date</Label><Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></div>
         <div className="space-y-1.5">
           <Label>Notes <span className="text-muted-foreground font-normal">(optional)</span></Label>
           <Textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Brief context…" />
@@ -140,9 +232,7 @@ function ChangeStageModal({ open, onClose, current, onConfirm, loading }: {
         <div className="space-y-1.5">
           <Label>New stage</Label>
           <Select value={stage} onValueChange={setStage}>
-            {ALL_STAGES_NO_LEGACY.map((s) => (
-              <SelectOption key={s.value} value={s.value}>{s.label}</SelectOption>
-            ))}
+            {ALL_STAGES_NO_LEGACY.map((s) => (<SelectOption key={s.value} value={s.value}>{s.label}</SelectOption>))}
           </Select>
         </div>
         <div className="flex gap-2 justify-end">
@@ -192,13 +282,10 @@ function HandoverModal({ open, onClose, engagement, users, onConfirm, loading }:
         </div>
         <div className="space-y-3 border-t pt-4">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Follow-up task (optional)</p>
-          <div className="space-y-1.5">
-            <Label>Task title</Label>
-            <Input value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} placeholder="e.g. Send proposal" />
-          </div>
+          <div className="space-y-1.5"><Label>Task title</Label><Input value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} /></div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5"><Label>Due date</Label><Input type="date" value={taskDueDate} onChange={(e) => setTaskDueDate(e.target.value)} /></div>
-            <div className="space-y-1.5"><Label>Notes</Label><Input value={taskDesc} onChange={(e) => setTaskDesc(e.target.value)} placeholder="Brief context…" /></div>
+            <div className="space-y-1.5"><Label>Notes</Label><Input value={taskDesc} onChange={(e) => setTaskDesc(e.target.value)} /></div>
           </div>
         </div>
         <div className="flex gap-2 justify-end pt-1">
@@ -225,18 +312,29 @@ function OwnerInitials({ name }: { name: string | null | undefined }) {
   );
 }
 
+function CallOutcomeIcon({ outcome }: { outcome: string | null | undefined }) {
+  switch (outcome) {
+    case "no_answer": return <PhoneOff size={9} />;
+    case "voicemail_left": return <Voicemail size={9} />;
+    case "gatekeeper": return <PhoneForwarded size={9} />;
+    case "meeting_booked": return <CalendarCheck size={9} />;
+    case "spoke_interested": return <CheckCircle2 size={9} />;
+    default: return <PhoneCall size={9} />;
+  }
+}
+
 function ProspectRow({ eng, selected, onClick }: {
   eng: Engagement; selected: boolean; onClick: () => void;
 }) {
-  const nextOverdue = isOverdue(eng.nextActionDate);
-  const lastActivity = eng.updatedAt.split("T")[0];
+  const nextDate = eng.nextCallDate ?? eng.nextActionDate;
+  const nextOverdue = isOverdue(nextDate);
 
   return (
     <div
       onClick={onClick}
       className={cn(
         "grid items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors border-b border-border/50 hover:bg-slate-50/80",
-        "grid-cols-[minmax(0,2fr)_120px_28px_80px_80px_36px]",
+        "grid-cols-[minmax(0,2fr)_100px_110px_28px_80px_40px]",
         selected && "bg-primary/5 border-l-2 border-l-primary"
       )}
     >
@@ -248,22 +346,34 @@ function ProspectRow({ eng, selected, onClick }: {
         {eng.contactName ? (
           <p className="text-xs text-muted-foreground truncate mt-0.5">{eng.contactName}</p>
         ) : (
-          <p className="text-xs text-muted-foreground/50 truncate mt-0.5 italic">No contact</p>
+          <p className="text-xs text-muted-foreground/40 truncate mt-0.5 italic">No contact</p>
         )}
       </div>
 
       {/* Stage */}
       <div>
         <span className={cn(
-          "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium border",
+          "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] font-medium border",
           getStageBadgeClass(eng.sdrStage)
         )}>
-          <span
-            className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-            style={{ backgroundColor: getStageDotColor(eng.sdrStage) }}
-          />
+          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: getStageDotColor(eng.sdrStage) }} />
           <span className="truncate">{getStageLabel(eng.sdrStage)}</span>
         </span>
+      </div>
+
+      {/* Last Call Outcome */}
+      <div>
+        {eng.lastCallOutcome ? (
+          <span className={cn(
+            "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] font-medium border",
+            getCallOutcomeBadgeClass(eng.lastCallOutcome)
+          )}>
+            <CallOutcomeIcon outcome={eng.lastCallOutcome} />
+            <span className="truncate">{getCallOutcomeLabel(eng.lastCallOutcome)}</span>
+          </span>
+        ) : (
+          <span className="text-muted-foreground/30 text-xs">—</span>
+        )}
       </div>
 
       {/* Owner */}
@@ -271,34 +381,26 @@ function ProspectRow({ eng, selected, onClick }: {
         <OwnerInitials name={eng.sdrOwnerName ?? eng.ownerName} />
       </div>
 
-      {/* Last activity */}
-      <div className="text-xs text-muted-foreground tabular-nums">
-        {formatDate(lastActivity)}
-      </div>
-
-      {/* Next action */}
+      {/* Next Action / Call */}
       <div className="text-xs tabular-nums">
-        {eng.nextActionDate ? (
-          <span className={cn(
-            "flex items-center gap-1",
-            nextOverdue ? "text-red-600 font-semibold" : "text-muted-foreground"
-          )}>
-            {nextOverdue && <AlertTriangle size={10} />}
-            {formatDate(eng.nextActionDate)}
+        {nextDate ? (
+          <span className={cn("flex items-center gap-0.5", nextOverdue ? "text-red-600 font-semibold" : "text-muted-foreground")}>
+            {nextOverdue && <AlertTriangle size={9} />}
+            {formatDate(nextDate)}
           </span>
         ) : (
-          <span className="text-muted-foreground/40">—</span>
+          <span className="text-muted-foreground/30">—</span>
         )}
       </div>
 
-      {/* Touches */}
+      {/* Call count */}
       <div className="text-xs text-center tabular-nums">
-        {eng.touchCount != null && eng.touchCount > 0 ? (
-          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-muted text-foreground text-[11px] font-medium">
-            {eng.touchCount}
+        {eng.callAttemptCount > 0 ? (
+          <span className="inline-flex items-center justify-center gap-0.5 w-auto px-1.5 h-5 rounded-full bg-violet-100 text-violet-700 text-[11px] font-medium">
+            <Phone size={9} /> {eng.callAttemptCount}
           </span>
         ) : (
-          <span className="text-muted-foreground/40">—</span>
+          <span className="text-muted-foreground/30">—</span>
         )}
       </div>
     </div>
@@ -310,20 +412,30 @@ function ProspectRow({ eng, selected, onClick }: {
 function sortEngagements(engs: Engagement[], sort: string): Engagement[] {
   return [...engs].sort((a, b) => {
     switch (sort) {
+      case "nextCallDate": {
+        const dateA = a.nextCallDate ?? a.nextActionDate;
+        const dateB = b.nextCallDate ?? b.nextActionDate;
+        if (!dateA && !dateB) return 0;
+        if (!dateA) return 1;
+        if (!dateB) return -1;
+        return dateA.localeCompare(dateB);
+      }
       case "nextAction": {
         if (!a.nextActionDate && !b.nextActionDate) return 0;
         if (!a.nextActionDate) return 1;
         if (!b.nextActionDate) return -1;
         return a.nextActionDate.localeCompare(b.nextActionDate);
       }
-      case "lastOutreach": {
-        if (!a.lastOutreachDate && !b.lastOutreachDate) return 0;
-        if (!a.lastOutreachDate) return 1;
-        if (!b.lastOutreachDate) return -1;
-        return b.lastOutreachDate.localeCompare(a.lastOutreachDate);
-      }
+      case "callCount":
+        return (b.callAttemptCount ?? 0) - (a.callAttemptCount ?? 0);
       case "touches":
         return (b.touchCount ?? 0) - (a.touchCount ?? 0);
+      case "meetingDate": {
+        if (!a.meetingDate && !b.meetingDate) return 0;
+        if (!a.meetingDate) return 1;
+        if (!b.meetingDate) return -1;
+        return a.meetingDate.localeCompare(b.meetingDate);
+      }
       case "created":
         return b.createdAt.localeCompare(a.createdAt);
       default: // lastActivity
@@ -336,44 +448,38 @@ function sortEngagements(engs: Engagement[], sort: string): Engagement[] {
 
 export default function SdrQueue() {
   const queryClient = useQueryClient();
-  const { canEdit } = usePermissions();
 
-  // ── Filter / search / sort state ──────────────────────────────────────────
   const [funnelFilter, setFunnelFilter] = useState("");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("lastActivity");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
-
-  // ── Drawer ─────────────────────────────────────────────────────────────────
   const [selectedEng, setSelectedEng] = useState<Engagement | null>(null);
-
-  // ── Modal ─────────────────────────────────────────────────────────────────
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
 
-  // ── Data ──────────────────────────────────────────────────────────────────
   const { data: rawEngagements = [], isLoading, refetch } = useListEngagements(
     { engagementType: "sdr", ...(search ? { search } : {}) },
     { query: { staleTime: 0 } }
   );
   const { data: users = [] } = useListUsers();
 
-  const updateMutation = useUpdateEngagement({
-    mutation: { onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/engagements"] }); } },
-  });
-  const createTaskMutation = useCreateTask({ mutation: { onSuccess: () => setActiveModal(null) } });
-  const handoverMutation = useHandoverEngagement({
-    mutation: { onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/engagements"] }); setActiveModal(null); } },
-  });
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["/api/engagements"] });
 
-  // ── Derived data ──────────────────────────────────────────────────────────
+  const updateMutation = useUpdateEngagement({ mutation: { onSuccess: invalidate } });
+  const createTaskMutation = useCreateTask({ mutation: { onSuccess: () => setActiveModal(null) } });
+  const handoverMutation = useHandoverEngagement({ mutation: { onSuccess: () => { invalidate(); setActiveModal(null); } } });
+  const logCallMutation = useLogCall({ mutation: { onSuccess: () => { invalidate(); setActiveModal(null); } } });
+
   const filtered = useMemo(() => {
     let list = rawEngagements;
     if (funnelFilter) list = list.filter((e) => e.sdrStage === funnelFilter);
     if (filters.owner) list = list.filter((e) => String(e.sdrOwnerUserId) === filters.owner);
     if (filters.leadSource) list = list.filter((e) => e.leadSource === filters.leadSource);
     if (filters.handoverStatus) list = list.filter((e) => e.handoverStatus === filters.handoverStatus);
-    if (filters.overdueOnly) list = list.filter((e) => isOverdue(e.nextActionDate));
+    if (filters.callOutcome) list = list.filter((e) => e.lastCallOutcome === filters.callOutcome);
+    if (filters.overdueOnly) list = list.filter((e) => isOverdue(e.nextCallDate ?? e.nextActionDate));
+    if (filters.followUpRequired) list = list.filter((e) => e.followUpRequired || e.sdrStage === "follow_up_required");
+    if (filters.contactMadeOnly) list = list.filter((e) => e.contactMade);
     if (filters.meetingBooked) list = list.filter((e) => e.meetingBooked);
     if (filters.hasHandover) list = list.filter((e) => e.handoverStatus === "pending" || e.handoverStatus === "in_progress");
     return list;
@@ -381,10 +487,11 @@ export default function SdrQueue() {
 
   const sorted = useMemo(() => sortEngagements(filtered, sort), [filtered, sort]);
 
-  const overdueCount = rawEngagements.filter((e) => isOverdue(e.nextActionDate)).length;
+  const overdueCount = rawEngagements.filter((e) => isOverdue(e.nextCallDate ?? e.nextActionDate)).length;
+  const followUpCount = rawEngagements.filter((e) => e.sdrStage === "follow_up_required").length;
   const activeFilterCount = countActiveFilters(filters);
+  const isMutating = updateMutation.isPending || createTaskMutation.isPending || handoverMutation.isPending || logCallMutation.isPending;
 
-  // Keep selectedEng in sync when data refreshes
   useEffect(() => {
     if (selectedEng) {
       const updated = rawEngagements.find((e) => e.id === selectedEng.id);
@@ -392,17 +499,21 @@ export default function SdrQueue() {
     }
   }, [rawEngagements]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const isMutating = updateMutation.isPending || createTaskMutation.isPending || handoverMutation.isPending;
+  // ── Action handlers ──────────────────────────────────────────────────────────
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
-
-  function handleDrawerAction(action: Parameters<typeof ProspectDrawer>[0]["onAction"][0]) {
+  function handleDrawerAction(action: DrawerAction) {
     switch (action.type) {
-      case "logOutreach":
-        updateMutation.mutate({
-          id: action.eng.id,
-          data: { lastOutreachDate: today, touchCount: (action.eng.touchCount ?? 0) + 1, outreachChannel: action.channel } as any,
-        });
+      case "logCallQuick":
+        logCallMutation.mutate({ id: action.eng.id, data: { outcome: action.outcome } });
+        break;
+      case "logCallDetailed":
+        setActiveModal({ type: "logCall", eng: action.eng, presetOutcome: action.outcome });
+        break;
+      case "logEmail":
+        updateMutation.mutate({ id: action.eng.id, data: { lastOutreachDate: today, touchCount: (action.eng.touchCount ?? 0) + 1, outreachChannel: "email" } as any });
+        break;
+      case "logLinkedin":
+        updateMutation.mutate({ id: action.eng.id, data: { lastOutreachDate: today, touchCount: (action.eng.touchCount ?? 0) + 1, outreachChannel: "linkedin" } as any });
         break;
       case "meeting":   setActiveModal({ type: "meeting",   eng: action.eng }); break;
       case "qualify":   setActiveModal({ type: "handover",  eng: action.eng }); break;
@@ -413,6 +524,19 @@ export default function SdrQueue() {
         updateMutation.mutate({ id: action.eng.id, data: { sdrStage: action.stage } as any });
         break;
     }
+  }
+
+  function handleLogCall(outcome: CallOutcome, nextCallDate: string, note: string, followUpReason: string) {
+    if (!activeModal || activeModal.type !== "logCall") return;
+    logCallMutation.mutate({
+      id: activeModal.eng.id,
+      data: {
+        outcome,
+        ...(nextCallDate ? { nextCallDate } : {}),
+        ...(note ? { latestNote: note } : {}),
+        ...(followUpReason ? { followUpReason } : {}),
+      },
+    });
   }
 
   function handleMarkMeetingBooked(date: string) {
@@ -453,33 +577,30 @@ export default function SdrQueue() {
       <div className="flex items-center justify-between px-4 py-3 border-b bg-white flex-shrink-0">
         <div>
           <h1 className="text-xl font-display font-bold text-foreground">SDR Queue</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {isLoading ? "Loading…" : `${rawEngagements.length} prospects`}
+          <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-3">
+            <span>{isLoading ? "Loading…" : `${rawEngagements.length} prospects`}</span>
             {overdueCount > 0 && (
-              <span className="ml-2 inline-flex items-center gap-1 text-amber-600 font-medium">
+              <span className="inline-flex items-center gap-1 text-amber-600 font-medium">
                 <AlertTriangle size={10} /> {overdueCount} overdue
+              </span>
+            )}
+            {followUpCount > 0 && (
+              <span className="inline-flex items-center gap-1 text-amber-600 font-medium">
+                <Phone size={10} /> {followUpCount} follow-up req'd
               </span>
             )}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-1.5 h-8" onClick={() => refetch()}>
-            <RefreshCw size={13} className={cn(isLoading && "animate-spin")} />
-            Refresh
-          </Button>
-        </div>
+        <Button variant="outline" size="sm" className="gap-1.5 h-8" onClick={() => refetch()}>
+          <RefreshCw size={13} className={cn(isLoading && "animate-spin")} /> Refresh
+        </Button>
       </div>
 
       {/* ── Funnel Bar ── */}
-      <FunnelBar
-        engagements={rawEngagements}
-        activeStage={funnelFilter}
-        onStageClick={setFunnelFilter}
-      />
+      <FunnelBar engagements={rawEngagements} activeStage={funnelFilter} onStageClick={setFunnelFilter} />
 
       {/* ── Action Bar ── */}
       <div className="flex items-center gap-2 px-4 py-2 border-b bg-white flex-shrink-0">
-        {/* Filter toggle */}
         <Button
           variant={filtersOpen ? "default" : "outline"}
           size="sm"
@@ -489,80 +610,59 @@ export default function SdrQueue() {
           <SlidersHorizontal size={13} />
           Filters
           {activeFilterCount > 0 && (
-            <span className={cn(
-              "inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold",
-              filtersOpen ? "bg-white text-primary" : "bg-primary text-white"
-            )}>
+            <span className={cn("inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold", filtersOpen ? "bg-white text-primary" : "bg-primary text-white")}>
               {activeFilterCount}
             </span>
           )}
         </Button>
 
-        {/* Search */}
         <div className="relative flex-1 max-w-80">
           <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-          <Input
-            placeholder="Search contacts, organisations…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-8 h-8 text-sm"
-          />
+          <Input placeholder="Search contacts, organisations…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 h-8 text-sm" />
         </div>
 
         <div className="flex-1" />
 
-        {/* Sort */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
-              <ArrowUpDown size={12} />
-              {sortLabel}
-              <ChevronDown size={11} />
+              <ArrowUpDown size={12} /> {sortLabel} <ChevronDown size={11} />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
             {SORT_OPTIONS.map((s) => (
-              <DropdownMenuItem
-                key={s.value}
-                className={cn("text-xs", sort === s.value && "font-semibold text-primary")}
-                onClick={() => setSort(s.value)}
-              >
+              <DropdownMenuItem key={s.value} className={cn("text-xs", sort === s.value && "font-semibold text-primary")} onClick={() => setSort(s.value)}>
                 {s.label}
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* Results count */}
         {!isLoading && (
           <span className="text-xs text-muted-foreground tabular-nums">
-            {sorted.length} {sorted.length !== rawEngagements.length ? `of ${rawEngagements.length}` : ""}
+            {sorted.length}{sorted.length !== rawEngagements.length ? ` of ${rawEngagements.length}` : ""}
           </span>
         )}
       </div>
 
-      {/* ── Main content: Filter panel + Table ── */}
+      {/* ── Main content ── */}
       <div className="flex-1 flex min-h-0 overflow-hidden">
-        <FilterPanel
-          open={filtersOpen}
-          filters={filters}
-          onChange={setFilters}
-          users={users}
-        />
+        <FilterPanel open={filtersOpen} filters={filters} onChange={setFilters} users={users} />
 
-        {/* Table area */}
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {/* Table header */}
           <div className={cn(
             "grid items-center gap-3 px-4 py-2 bg-muted/40 border-b border-border/50 flex-shrink-0",
-            "grid-cols-[minmax(0,2fr)_120px_28px_80px_80px_36px]"
+            "grid-cols-[minmax(0,2fr)_100px_110px_28px_80px_40px]"
           )}>
             <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Contact / Org</span>
             <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Stage</span>
-            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide"></span>
-            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Updated</span>
-            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Next Action</span>
-            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide text-center">#</span>
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Last Call</span>
+            <span />
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Next</span>
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide text-center">
+              <Phone size={10} />
+            </span>
           </div>
 
           {/* Table body */}
@@ -574,21 +674,13 @@ export default function SdrQueue() {
             ) : sorted.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-40 text-sm text-muted-foreground gap-2">
                 <p className="font-medium">No prospects match your filters</p>
-                <button
-                  onClick={() => { setFunnelFilter(""); setFilters(DEFAULT_FILTERS); setSearch(""); }}
-                  className="text-xs text-primary hover:underline"
-                >
+                <button onClick={() => { setFunnelFilter(""); setFilters(DEFAULT_FILTERS); setSearch(""); }} className="text-xs text-primary hover:underline">
                   Clear all filters
                 </button>
               </div>
             ) : (
               sorted.map((eng) => (
-                <ProspectRow
-                  key={eng.id}
-                  eng={eng}
-                  selected={selectedEng?.id === eng.id}
-                  onClick={() => setSelectedEng(selectedEng?.id === eng.id ? null : eng)}
-                />
+                <ProspectRow key={eng.id} eng={eng} selected={selectedEng?.id === eng.id} onClick={() => setSelectedEng(selectedEng?.id === eng.id ? null : eng)} />
               ))
             )}
           </div>
@@ -596,48 +688,22 @@ export default function SdrQueue() {
       </div>
 
       {/* ── Prospect Drawer ── */}
-      <ProspectDrawer
-        engagement={selectedEng}
-        onClose={() => setSelectedEng(null)}
-        onAction={handleDrawerAction}
-        isMutating={isMutating}
-      />
+      <ProspectDrawer engagement={selectedEng} onClose={() => setSelectedEng(null)} onAction={handleDrawerAction} isMutating={isMutating} />
 
       {/* ── Modals ── */}
-      <MeetingModal
-        open={activeModal?.type === "meeting"}
+      <LogCallModal
+        open={activeModal?.type === "logCall"}
         onClose={() => setActiveModal(null)}
-        onConfirm={handleMarkMeetingBooked}
+        engagement={activeModal?.type === "logCall" ? activeModal.eng : null}
+        presetOutcome={activeModal?.type === "logCall" ? activeModal.presetOutcome : undefined}
+        onConfirm={handleLogCall}
         loading={isMutating}
       />
-      <DisqualifyModal
-        open={activeModal?.type === "disqualify"}
-        onClose={() => setActiveModal(null)}
-        onConfirm={handleDisqualify}
-        loading={isMutating}
-      />
-      <CreateTaskModal
-        open={activeModal?.type === "task"}
-        onClose={() => setActiveModal(null)}
-        engagement={activeModal?.type === "task" ? activeModal.eng : null}
-        onConfirm={handleCreateTask}
-        loading={isMutating}
-      />
-      <ChangeStageModal
-        open={activeModal?.type === "stage"}
-        onClose={() => setActiveModal(null)}
-        current={activeModal?.type === "stage" ? activeModal.eng.sdrStage : undefined}
-        onConfirm={handleChangeStage}
-        loading={isMutating}
-      />
-      <HandoverModal
-        open={activeModal?.type === "handover"}
-        onClose={() => setActiveModal(null)}
-        engagement={activeModal?.type === "handover" ? activeModal.eng : null}
-        users={users}
-        onConfirm={handleHandover}
-        loading={isMutating}
-      />
+      <MeetingModal open={activeModal?.type === "meeting"} onClose={() => setActiveModal(null)} onConfirm={handleMarkMeetingBooked} loading={isMutating} />
+      <DisqualifyModal open={activeModal?.type === "disqualify"} onClose={() => setActiveModal(null)} onConfirm={handleDisqualify} loading={isMutating} />
+      <CreateTaskModal open={activeModal?.type === "task"} onClose={() => setActiveModal(null)} engagement={activeModal?.type === "task" ? activeModal.eng : null} onConfirm={handleCreateTask} loading={isMutating} />
+      <ChangeStageModal open={activeModal?.type === "stage"} onClose={() => setActiveModal(null)} current={activeModal?.type === "stage" ? activeModal.eng.sdrStage : undefined} onConfirm={handleChangeStage} loading={isMutating} />
+      <HandoverModal open={activeModal?.type === "handover"} onClose={() => setActiveModal(null)} engagement={activeModal?.type === "handover" ? activeModal.eng : null} users={users} onConfirm={handleHandover} loading={isMutating} />
     </div>
   );
 }
