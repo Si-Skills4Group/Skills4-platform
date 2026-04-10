@@ -126,6 +126,7 @@ export function StageBadge({ stage, className }: { stage: EngagementStage; class
 
 type EngFormState = {
   title: string;
+  engagementType: "standard" | "sdr";
   organisationId: string;
   primaryContactId: string;
   ownerUserId: string;
@@ -142,6 +143,7 @@ type EngFormState = {
 
 const DEFAULT_FORM: EngFormState = {
   title: "",
+  engagementType: "standard",
   organisationId: "",
   primaryContactId: "",
   ownerUserId: "",
@@ -159,6 +161,7 @@ const DEFAULT_FORM: EngFormState = {
 function engToFormState(e: Engagement): EngFormState {
   return {
     title: e.title,
+    engagementType: (e.engagementType === "sdr" ? "sdr" : "standard") as "standard" | "sdr",
     organisationId: e.organisationId?.toString() ?? "",
     primaryContactId: e.primaryContactId?.toString() ?? "",
     ownerUserId: e.ownerUserId?.toString() ?? "",
@@ -237,6 +240,18 @@ function EngagementForm({
           className={errors.title ? "border-destructive" : ""}
         />
         {errors.title && <p className="text-xs text-destructive">{errors.title}</p>}
+      </div>
+
+      {/* Engagement Type */}
+      <div className="space-y-1.5">
+        <Label>Engagement Type</Label>
+        <Select value={form.engagementType} onValueChange={(v) => set("engagementType", v as "standard" | "sdr")}>
+          <SelectOption value="standard">Standard — general pipeline engagement</SelectOption>
+          <SelectOption value="sdr">SDR Prospect — appears in SDR Queue for cold outreach</SelectOption>
+        </Select>
+        {form.engagementType === "sdr" && (
+          <p className="text-xs text-muted-foreground">This prospect will be added to the SDR Queue in "New" stage and assigned to you as the SDR owner.</p>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -664,6 +679,7 @@ export default function Engagements() {
   function handleCreate(form: EngFormState) {
     const req: CreateEngagementRequest = {
       title: form.title,
+      engagementType: form.engagementType,
       stage: form.stage,
       status: form.status,
       organisationId: form.organisationId ? parseInt(form.organisationId) : null,
@@ -686,6 +702,7 @@ export default function Engagements() {
       id: editEng.id,
       data: {
         title: form.title,
+        engagementType: form.engagementType,
         stage: form.stage,
         status: form.status,
         organisationId: form.organisationId ? parseInt(form.organisationId) : null,
