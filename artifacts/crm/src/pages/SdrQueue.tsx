@@ -333,8 +333,8 @@ function ProspectRow({ eng, selected, onClick }: {
     <div
       onClick={onClick}
       className={cn(
-        "grid items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors border-b border-border/50 hover:bg-slate-50/80",
-        "grid-cols-[minmax(0,2fr)_100px_110px_28px_80px_40px]",
+        "grid items-center gap-x-3 px-4 py-2.5 cursor-pointer transition-colors border-b border-border/50 hover:bg-slate-50/80",
+        "grid-cols-[minmax(0,2fr)_minmax(0,130px)_minmax(0,150px)_28px_80px_40px]",
         selected && "bg-primary/5 border-l-2 border-l-primary"
       )}
     >
@@ -351,9 +351,9 @@ function ProspectRow({ eng, selected, onClick }: {
       </div>
 
       {/* Stage */}
-      <div>
+      <div className="min-w-0 overflow-hidden">
         <span className={cn(
-          "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] font-medium border",
+          "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] font-medium border max-w-full",
           getStageBadgeClass(eng.sdrStage)
         )}>
           <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: getStageDotColor(eng.sdrStage) }} />
@@ -362,10 +362,10 @@ function ProspectRow({ eng, selected, onClick }: {
       </div>
 
       {/* Last Call Outcome */}
-      <div>
+      <div className="min-w-0 overflow-hidden">
         {eng.lastCallOutcome ? (
           <span className={cn(
-            "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] font-medium border",
+            "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] font-medium border max-w-full",
             getCallOutcomeBadgeClass(eng.lastCallOutcome)
           )}>
             <CallOutcomeIcon outcome={eng.lastCallOutcome} />
@@ -652,8 +652,8 @@ export default function SdrQueue() {
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {/* Table header */}
           <div className={cn(
-            "grid items-center gap-3 px-4 py-2 bg-muted/40 border-b border-border/50 flex-shrink-0",
-            "grid-cols-[minmax(0,2fr)_100px_110px_28px_80px_40px]"
+            "grid items-center gap-x-3 px-4 py-2 bg-muted/40 border-b border-border/50 flex-shrink-0",
+            "grid-cols-[minmax(0,2fr)_minmax(0,130px)_minmax(0,150px)_28px_80px_40px]"
           )}>
             <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Contact / Org</span>
             <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Stage</span>
