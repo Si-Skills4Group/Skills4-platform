@@ -52,7 +52,7 @@ function formatActivity(action: string | null | undefined, context: Record<strin
   if (!action) return "Activity logged";
   if (!context) return action.replace(/_/g, " ");
   switch (action) {
-    case "engagement_created": return "Prospect added to SDR queue";
+    case "engagement_created": return "Prospect added to call queue";
     case "stage_changed":
       if (context.stageFrom && context.stageTo) {
         return `Stage: ${getStageLabel(context.stageFrom)} → ${getStageLabel(context.stageTo)}`;

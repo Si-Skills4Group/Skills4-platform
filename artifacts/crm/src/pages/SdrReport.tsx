@@ -275,7 +275,7 @@ export default function SdrReport() {
               <ClipboardList size={18} className="text-indigo-600" />
             </div>
             <div>
-              <h1 className="text-lg font-display font-bold text-foreground">SDR Manager Report</h1>
+              <h1 className="text-lg font-display font-bold text-foreground">SDR Performance Report</h1>
               <p className="text-xs text-muted-foreground">
                 Conversion by rep · meetings trend · overdue follow-ups · disqualification reasons
                 {updatedLabel && <span className="ml-2 text-muted-foreground/60">· Updated {updatedLabel}</span>}

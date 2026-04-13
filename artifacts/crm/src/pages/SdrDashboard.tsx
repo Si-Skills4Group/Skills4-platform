@@ -1,7 +1,7 @@
 import { Link } from "wouter";
 import {
   Users, AlertTriangle, CalendarCheck, Trophy, XCircle,
-  Clock, CheckSquare, ArrowRight, RefreshCw, Target,
+  Clock, CheckSquare, ArrowRight, RefreshCw, Phone,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -160,6 +160,7 @@ export default function SdrDashboard() {
     meetingsBookedThisWeek: 0,
     qualifiedLeads: 0,
     disqualifiedLeads: 0,
+    callsToday: 0,
     prospectsByStage: [],
     conversionFunnel: [],
     myTasks: [],
@@ -186,9 +187,9 @@ export default function SdrDashboard() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-shrink-0">
         <div>
-          <h1 className="text-3xl font-display font-bold text-foreground">SDR Dashboard</h1>
+          <h1 className="text-3xl font-display font-bold text-foreground">SDR Pipeline</h1>
           <p className="text-muted-foreground mt-1 text-sm">
-            {user?.fullName ? `Welcome back, ${user.fullName.split(" ")[0]}.` : "SDR pipeline at a glance."}
+            {user?.fullName ? `Welcome back, ${user.fullName.split(" ")[0]}.` : "Your pipeline at a glance."}
             {" "}Refreshes every minute.
           </p>
         </div>
@@ -240,6 +241,15 @@ export default function SdrDashboard() {
           highlightColor="border-l-orange-500"
         />
         <MetricCard
+          label="Calls Today"
+          value={summary.callsToday}
+          icon={Phone}
+          iconBg="bg-violet-50"
+          iconColor="text-violet-600"
+          highlight={summary.callsToday > 0}
+          highlightColor="border-l-violet-500"
+        />
+        <MetricCard
           label="Qualified"
           value={summary.qualifiedLeads}
           icon={Trophy}
@@ -248,23 +258,16 @@ export default function SdrDashboard() {
           highlight={summary.qualifiedLeads > 0}
           highlightColor="border-l-emerald-500"
         />
-        <MetricCard
-          label="Disqualified"
-          value={summary.disqualifiedLeads}
-          icon={XCircle}
-          iconBg="bg-slate-50"
-          iconColor="text-slate-500"
-        />
       </div>
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 flex-shrink-0">
 
-        {/* Prospects by Stage */}
+        {/* Pipeline Breakdown */}
         <Card className="lg:col-span-3">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Prospects by Stage</CardTitle>
-            <p className="text-xs text-muted-foreground">SDR pipeline distribution</p>
+            <CardTitle className="text-base">Pipeline Breakdown</CardTitle>
+            <p className="text-xs text-muted-foreground">Active prospects across funnel stages</p>
           </CardHeader>
           <CardContent>
             {stageChartData.length === 0 ? (
@@ -302,7 +305,7 @@ export default function SdrDashboard() {
         <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Conversion Funnel</CardTitle>
-            <p className="text-xs text-muted-foreground">Prospects → Contacted → Meeting → Qualified</p>
+            <p className="text-xs text-muted-foreground">Prospects → Contact Made → Meeting → Qualified</p>
           </CardHeader>
           <CardContent>
             {funnelData.length === 0 ? (
@@ -423,12 +426,12 @@ export default function SdrDashboard() {
           <CardHeader className="pb-3 flex-shrink-0">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-base">Recently Updated</CardTitle>
-                <p className="text-xs text-muted-foreground">Latest SDR prospect activity</p>
+                <CardTitle className="text-base">Recent Activity</CardTitle>
+                <p className="text-xs text-muted-foreground">Last touched prospects</p>
               </div>
               <Link href="/sdr">
                 <span className="flex items-center gap-1 text-xs text-primary hover:underline cursor-pointer">
-                  SDR Queue <ArrowRight size={12} />
+                  Call Queue <ArrowRight size={12} />
                 </span>
               </Link>
             </div>
@@ -442,7 +445,7 @@ export default function SdrDashboard() {
                   const stage = eng.sdrStage;
                   const stageLabel = stage ? (STAGE_LABELS[stage] ?? stage) : null;
                   const stageColor = stage ? (STAGE_COLORS[stage] ?? "#94a3b8") : "#94a3b8";
-                  const isOverdueOutreach = eng.nextOutreachDate && eng.nextOutreachDate < todayStr;
+                  const isOverdueOutreach = eng.nextCallDate && eng.nextCallDate < todayStr;
 
                   return (
                     <li key={eng.id}>

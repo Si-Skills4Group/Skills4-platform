@@ -721,7 +721,7 @@ export default function SdrQueue() {
       {/* ── Page Header ── */}
       <div className="flex items-center justify-between px-4 py-3 border-b bg-white flex-shrink-0">
         <div>
-          <h1 className="text-xl font-display font-bold text-foreground">SDR Queue</h1>
+          <h1 className="text-xl font-display font-bold text-foreground">Call Queue</h1>
           <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-3">
             <span>{isLoading ? "Loading…" : `${rawEngagements.length} prospects`}</span>
             {overdueCount > 0 && (

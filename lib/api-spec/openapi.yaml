@@ -1612,6 +1612,8 @@ components:
           type: integer
         disqualifiedLeads:
           type: integer
+        callsToday:
+          type: integer
         prospectsByStage:
           type: array
           items:
@@ -1640,7 +1642,7 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Engagement"
-      required: [newProspects, dueFollowUpsToday, overdueFollowUps, meetingsBookedThisWeek, qualifiedLeads, disqualifiedLeads, prospectsByStage, conversionFunnel, myTasks, recentProspects]
+      required: [newProspects, dueFollowUpsToday, overdueFollowUps, meetingsBookedThisWeek, qualifiedLeads, disqualifiedLeads, callsToday, prospectsByStage, conversionFunnel, myTasks, recentProspects]
 
     SdrManagerReport:
       type: object

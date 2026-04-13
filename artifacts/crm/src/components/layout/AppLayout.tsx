@@ -22,9 +22,9 @@ const navigation = [
   { name: "Contacts", href: "/contacts", icon: Users },
   { name: "Engagements", href: "/engagements", icon: Handshake },
   { name: "Tasks", href: "/tasks", icon: CheckSquare },
-  { name: "SDR Dashboard", href: "/sdr-dashboard", icon: BarChart2 },
-  { name: "SDR Queue", href: "/sdr", icon: Target },
-  { name: "SDR Report", href: "/sdr-report", icon: ClipboardList },
+  { name: "SDR Pipeline", href: "/sdr-dashboard", icon: BarChart2 },
+  { name: "Call Queue", href: "/sdr", icon: Target },
+  { name: "SDR Performance", href: "/sdr-report", icon: ClipboardList },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 

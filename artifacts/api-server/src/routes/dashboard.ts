@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
 import { organisationsTable, contactsTable, engagementsTable, tasksTable, usersTable } from "@workspace/db/schema";
-import { eq, sql, and, or, ne, gt, lt, isNotNull, inArray } from "drizzle-orm";
+import { eq, sql, and, or, ne, gt, lt, isNotNull, inArray, not } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 
 const router: IRouter = Router();
@@ -154,6 +154,8 @@ router.get("/sdr", async (req, res) => {
 
     const sdrOnly = eq(engagementsTable.engagementType, "sdr");
 
+    const TERMINAL_STAGES = ["qualified", "disqualified", "unresponsive", "do_not_contact", "bad_data", "changed_job", "nurture"];
+
     const [
       [newProspects],
       [dueFollowUpsToday],
@@ -161,20 +163,22 @@ router.get("/sdr", async (req, res) => {
       [meetingsBookedThisWeek],
       [qualifiedLeads],
       [disqualifiedLeads],
+      [callsToday],
     ] = await Promise.all([
       db.select({ count: sql<number>`count(*)::int` }).from(engagementsTable)
         .where(and(sdrOnly, eq(engagementsTable.sdrStage, "new"))),
 
+      // Prospects with next call due today
       db.select({ count: sql<number>`count(*)::int` }).from(engagementsTable)
-        .where(and(sdrOnly, eq(engagementsTable.nextOutreachDate, today))),
+        .where(and(sdrOnly, eq(engagementsTable.nextCallDate, today))),
 
+      // Prospects with overdue next call (not in terminal stages)
       db.select({ count: sql<number>`count(*)::int` }).from(engagementsTable)
         .where(and(
           sdrOnly,
-          isNotNull(engagementsTable.nextOutreachDate),
-          lt(engagementsTable.nextOutreachDate, today),
-          ne(engagementsTable.sdrStage, "qualified"),
-          ne(engagementsTable.sdrStage, "disqualified"),
+          isNotNull(engagementsTable.nextCallDate),
+          lt(engagementsTable.nextCallDate, today),
+          not(inArray(engagementsTable.sdrStage, TERMINAL_STAGES)),
         )),
 
       db.select({ count: sql<number>`count(*)::int` }).from(engagementsTable)
@@ -191,6 +195,10 @@ router.get("/sdr", async (req, res) => {
 
       db.select({ count: sql<number>`count(*)::int` }).from(engagementsTable)
         .where(and(sdrOnly, eq(engagementsTable.sdrStage, "disqualified"))),
+
+      // Prospects where a call was logged today
+      db.select({ count: sql<number>`count(*)::int` }).from(engagementsTable)
+        .where(and(sdrOnly, eq(engagementsTable.lastCallDate, today))),
     ]);
 
     // Prospects by stage
@@ -200,20 +208,29 @@ router.get("/sdr", async (req, res) => {
       .where(sdrOnly)
       .groupBy(engagementsTable.sdrStage);
 
-    // Conversion funnel — cumulative counts at each key threshold
-    const totalSdr = await db.select({ count: sql<number>`count(*)::int` }).from(engagementsTable).where(sdrOnly);
-    const contactedPlus = await db.select({ count: sql<number>`count(*)::int` }).from(engagementsTable)
-      .where(and(sdrOnly, inArray(engagementsTable.sdrStage, ["contacted", "response_received", "meeting_booked", "qualified", "disqualified"])));
-    const meetingBookedCount = await db.select({ count: sql<number>`count(*)::int` }).from(engagementsTable)
-      .where(and(sdrOnly, eq(engagementsTable.meetingBooked, true)));
-    const qualifiedCount = await db.select({ count: sql<number>`count(*)::int` }).from(engagementsTable)
-      .where(and(sdrOnly, eq(engagementsTable.sdrStage, "qualified")));
+    // Conversion funnel — cumulative counts using call-led stage model
+    const CONTACT_MADE_STAGES = [
+      "contact_made", "no_contact", "follow_up_required", "replied",
+      "interested", "meeting_booked", "qualified", "disqualified",
+      "unresponsive", "do_not_contact", "bad_data", "changed_job",
+      // legacy compat
+      "contacted", "response_received",
+    ];
+    const [totalSdrRows, contactedPlusRows, meetingBookedRows, qualifiedCountRows] = await Promise.all([
+      db.select({ count: sql<number>`count(*)::int` }).from(engagementsTable).where(sdrOnly),
+      db.select({ count: sql<number>`count(*)::int` }).from(engagementsTable)
+        .where(and(sdrOnly, inArray(engagementsTable.sdrStage, CONTACT_MADE_STAGES))),
+      db.select({ count: sql<number>`count(*)::int` }).from(engagementsTable)
+        .where(and(sdrOnly, eq(engagementsTable.meetingBooked, true))),
+      db.select({ count: sql<number>`count(*)::int` }).from(engagementsTable)
+        .where(and(sdrOnly, eq(engagementsTable.sdrStage, "qualified"))),
+    ]);
 
     const conversionFunnel = [
-      { label: "Prospects", count: totalSdr[0]?.count ?? 0 },
-      { label: "Contacted", count: contactedPlus[0]?.count ?? 0 },
-      { label: "Meeting Booked", count: meetingBookedCount[0]?.count ?? 0 },
-      { label: "Qualified", count: qualifiedCount[0]?.count ?? 0 },
+      { label: "Prospects",     count: totalSdrRows[0]?.count     ?? 0 },
+      { label: "Contact Made",  count: contactedPlusRows[0]?.count ?? 0 },
+      { label: "Meeting Booked",count: meetingBookedRows[0]?.count ?? 0 },
+      { label: "Qualified",     count: qualifiedCountRows[0]?.count ?? 0 },
     ];
 
     // My SDR-related tasks
@@ -268,6 +285,7 @@ router.get("/sdr", async (req, res) => {
       meetingsBookedThisWeek: meetingsBookedThisWeek?.count ?? 0,
       qualifiedLeads: qualifiedLeads?.count ?? 0,
       disqualifiedLeads: disqualifiedLeads?.count ?? 0,
+      callsToday: callsToday?.count ?? 0,
       prospectsByStage: prospectsByStageRows.map((r) => ({ stage: r.stage ?? "unknown", count: r.count })),
       conversionFunnel,
       myTasks: myTaskRows.map(mapTask),

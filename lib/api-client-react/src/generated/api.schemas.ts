@@ -515,6 +515,7 @@ export interface SdrDashboardSummary {
   meetingsBookedThisWeek: number;
   qualifiedLeads: number;
   disqualifiedLeads: number;
+  callsToday: number;
   prospectsByStage: SdrDashboardSummaryProspectsByStageItem[];
   conversionFunnel: SdrDashboardSummaryConversionFunnelItem[];
   myTasks: Task[];

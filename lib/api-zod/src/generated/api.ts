@@ -1390,6 +1390,7 @@ export const GetSdrDashboardResponse = zod.object({
   meetingsBookedThisWeek: zod.number(),
   qualifiedLeads: zod.number(),
   disqualifiedLeads: zod.number(),
+  callsToday: zod.number(),
   prospectsByStage: zod.array(
     zod.object({
       stage: zod.string(),
