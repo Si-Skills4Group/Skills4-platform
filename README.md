@@ -35,7 +35,7 @@ An internal employer engagement CRM built as a **lightweight MVP** to validate w
 
 ## What it does
 
-Skills4CRM helps employer engagement teams manage relationships with organisations, contacts, and apprenticeship opportunities in one place. It covers the full pipeline from first contact through to active partnership.
+Skills4CRM helps employer engagement teams manage relationships with organisations, contacts, and apprenticeship opportunities in one place. It covers the full pipeline from initial SDR prospecting through to active employer partnership.
 
 | Module | Description |
 |---|---|
@@ -44,7 +44,9 @@ Skills4CRM helps employer engagement teams manage relationships with organisatio
 | **Contacts** | People within organisations, linked to engagements and tasks |
 | **Engagements** | Apprenticeship/placement opportunities tracked through a 7-stage pipeline (Lead → Won) |
 | **Tasks** | Internal actions with priority, status, due dates, overdue highlighting, and completion |
-| **Settings** | User profile management |
+| **SDR Pipeline** | Call-led prospecting dashboard: daily call metrics, pipeline breakdown chart, conversion funnel, and recent activity feed |
+| **Call Queue** | SDR prospect list with call outcome tracking, next call scheduling, stage progression, and one-click call logging via a side drawer |
+| **SDR Performance** | Manager-level report: rep performance table, meetings booked by week, terminal stage breakdown, and overdue follow-up list |
 
 ---
 
@@ -69,14 +71,38 @@ Skills4CRM helps employer engagement teams manage relationships with organisatio
 │   ├── api-server/              # Express 5 REST API
 │   │   └── src/
 │   │       ├── routes/          # One file per resource
+│   │       │   ├── engagements.ts   # CRUD + log-call + handover + SDR automations
+│   │       │   ├── dashboard.ts     # Summary, SDR pipeline, and SDR manager reports
+│   │       │   ├── tasks.ts
+│   │       │   ├── contacts.ts
+│   │       │   ├── organisations.ts
+│   │       │   └── activityLog.ts
 │   │       ├── middlewares/     # authenticate.ts, requireRole.ts
 │   │       └── lib/
 │   │           ├── auth.ts      # JWT helpers (swap for Entra ID here)
 │   │           └── logActivity.ts  # Activity log writer
 │   └── crm/                     # React + Vite frontend
 │       └── src/
-│           ├── pages/           # One file per module
-│           ├── components/      # Shared UI (layout, modals, activity feed)
+│           ├── pages/
+│           │   ├── Dashboard.tsx        # Main CRM dashboard
+│           │   ├── SdrDashboard.tsx     # SDR Pipeline dashboard
+│           │   ├── SdrQueue.tsx         # Call Queue (prospect table + filters)
+│           │   ├── SdrReport.tsx        # SDR Performance Report
+│           │   ├── Engagements.tsx
+│           │   ├── EngagementDetail.tsx
+│           │   ├── Organisations.tsx
+│           │   ├── OrganisationDetail.tsx
+│           │   ├── Contacts.tsx
+│           │   ├── ContactDetail.tsx
+│           │   └── Tasks.tsx
+│           ├── components/
+│           │   ├── sdr/
+│           │   │   ├── ProspectDrawer.tsx    # Side drawer: call log, stage actions, history
+│           │   │   ├── FilterPanel.tsx       # Call Queue filter sidebar
+│           │   │   ├── FunnelBar.tsx         # Inline funnel bar component
+│           │   │   └── constants.ts          # Stages, outcomes, colours, sort options
+│           │   └── layout/
+│           │       └── AppLayout.tsx         # Nav: SDR Pipeline / Call Queue / SDR Performance
 │           └── contexts/        # AuthContext
 ├── lib/
 │   ├── api-spec/                # OpenAPI 3.0 spec + Orval config
@@ -87,11 +113,11 @@ Skills4CRM helps employer engagement teams manage relationships with organisatio
 │           ├── users.ts         # → SystemUser
 │           ├── organisations.ts # → Account
 │           ├── contacts.ts      # → Contact
-│           ├── engagements.ts   # → Opportunity / custom Engagement
+│           ├── engagements.ts   # → Opportunity / custom Engagement (+ SDR fields)
 │           ├── tasks.ts         # → Task (Activity)
 │           └── activityLog.ts   # → Timeline / Audit
 ├── scripts/
-│   └── src/seed.ts              # Demo data seed (12 orgs, 20 contacts, 15 engagements, 18 tasks)
+│   └── src/seed.ts              # Demo data (12 orgs, 20 contacts, 15 engagements, 15 SDR prospects, 21 tasks)
 └── pnpm-workspace.yaml
 ```
 
@@ -233,30 +259,68 @@ contacts
 
 ### engagements
 
+The `engagements` table serves **two engagement types** via the `engagement_type` discriminator:
+
+- `employer_engagement` — standard 7-stage relationship pipeline (Lead → Won)
+- `sdr` — call-led prospecting pipeline with 12 stages and full call-tracking fields
+
 ```
-engagements
+engagements (shared fields)
 ├── id                      serial PK           → opportunityid / custom engagementid
+├── engagement_type         text                → crm_engagementtype ('employer_engagement' | 'sdr')
 ├── organisation_id         int FK → orgs       → customerid (Account lookup)
 ├── primary_contact_id      int FK → contacts   → parentcontactid (Contact lookup)
 ├── owner_user_id           int FK → users      → ownerid (SystemUser lookup)
 ├── title                   text NOT NULL       → name
-├── stage                   text                → salesstage / crm_stage (custom picklist)
-│                                                  Values: lead | contacted | meeting_booked |
-│                                                          proposal | active | won | dormant
-├── status                  text                → statuscode
-│                                                  Values: open | closed_won | closed_lost | on_hold
+├── stage                   text                → salesstage / crm_stage (employer_engagement pipeline)
+├── status                  text                → statuscode (open | closed_won | closed_lost | on_hold)
 ├── expected_learner_volume int                 → crm_expectedlearnervolume (custom field)
 ├── expected_value          numeric(12,2)       → estimatedvalue
 ├── probability             int                 → closeprobability (0–100)
-├── last_contact_date       text (ISO date)     → crm_lastcontactdate (custom field)
-├── next_action_date        text (ISO date)     → crm_nextactiondate (custom field)
-├── next_action_note        text                → crm_nextactionnote (custom field)
+├── last_contact_date       text (ISO date)     → crm_lastcontactdate
+├── next_action_date        text (ISO date)     → crm_nextactiondate
+├── next_action_note        text                → crm_nextactionnote
 ├── notes                   text                → description
+├── touch_count             int                 → crm_touchcount
+├── outreach_channel        text                → crm_outreachchannel
+├── last_outreach_date      text (ISO date)     → crm_lastoutreachdate
 ├── created_at              timestamp           → createdon
 └── updated_at              timestamp           → modifiedon
-```
 
-**Design note on `stage` vs `status`:** The `stage` field tracks the sales pipeline position (mutable, user-driven). The `status` field tracks the record lifecycle (open / closed). In D365 the equivalent is `salesstage` (or a custom picklist) for stage, and `statuscode` for the lifecycle.
+engagements (SDR-specific fields — populated when engagement_type = 'sdr')
+├── sdr_stage               text                → crm_sdrstage (custom picklist)
+│                                                  Values: new | researching | attempted_call |
+│                                                          contact_made | no_contact | follow_up_required |
+│                                                          interested | meeting_booked | qualified |
+│                                                          nurture | unresponsive | disqualified |
+│                                                          do_not_contact | bad_data | changed_job
+├── sdr_owner_user_id       int FK → users      → crm_sdrownerid (SDR rep lookup)
+├── handover_owner_user_id  int FK → users      → crm_handoverownerid (AE/BD rep lookup)
+├── handover_status         text                → crm_handoverstatus (pending | complete)
+├── handover_notes          text                → crm_handovernotes
+├── qualification_status    text                → crm_qualificationstatus
+├── disqualification_reason text                → crm_disqualificationreason
+├── call_attempt_count      int                 → crm_callattemptcount
+├── last_call_date          text (ISO date)     → crm_lastcalldate
+├── last_call_outcome       text                → crm_lastcalloutcome (custom picklist)
+│                                                  Values: no_answer | voicemail_left | gatekeeper |
+│                                                          wrong_person | spoke_call_back_later |
+│                                                          spoke_send_info | spoke_not_interested |
+│                                                          spoke_interested | meeting_booked
+├── next_call_date          text (ISO date)     → crm_nextcalldate
+├── contact_made            boolean             → crm_contactmade
+├── voicemail_left          boolean             → crm_voicemailleft
+├── follow_up_required      boolean             → crm_followuprequired
+├── follow_up_reason        text                → crm_followupreason
+├── meeting_booked          boolean             → crm_meetingbooked
+├── meeting_date            text (ISO date)     → crm_meetingdate
+├── mql_status              boolean             → crm_mqlstatus (Marketing Qualified Lead)
+├── sql_status              boolean             → crm_sqlstatus (Sales Qualified Lead)
+├── opportunity_created     boolean             → crm_opportunitycreated
+├── pitch_deck_sent         boolean             → crm_pitchdecksent
+├── info_sent_date          text (ISO date)     → crm_infosentdate
+└── latest_note             text                → crm_latestnote
+```
 
 ### tasks
 
@@ -277,8 +341,6 @@ tasks
 └── updated_at      timestamp           → modifiedon
 ```
 
-**D365 note on `regardingobjectid`:** In Dataverse, a single `regardingobjectid` polymorphic lookup points to either an Account or Opportunity. The MVP stores both as separate FKs; during migration, choose the most specific relationship (engagement_id if set, otherwise organisation_id).
-
 ### activity_log
 
 ```
@@ -287,15 +349,13 @@ activity_log
 ├── event_type      text                → crm_eventtype (custom picklist)
 │                                          Values: org_created | contact_added |
 │                                                  engagement_created | stage_changed |
-│                                                  task_completed
+│                                                  task_completed | call_logged | task_created
 ├── entity_type     text                → regardingobjecttypecode
 ├── entity_id       int                 → regardingobjectid
 ├── actor_user_id   int FK → users      → ownerid (SystemUser)
 ├── metadata        jsonb               → JSON blob (expand to structured fields in D365)
 └── created_at      timestamp           → createdon
 ```
-
-**D365 migration note:** The `activity_log` table is a custom audit trail. In D365, this maps to the native **Timeline** / **ActivityPointer** mechanism, or a custom `crm_activitylog` entity. The `metadata` JSONB blob should be decomposed into typed columns (e.g., `crm_stagefrom`, `crm_stageto`) on migration.
 
 ---
 
@@ -314,7 +374,7 @@ All routes require a valid `Authorization: Bearer <token>` header except `GET /a
 
 | Method | Path | Role required | Description |
 |---|---|---|---|
-| `GET` | `/api/organisations` | Any | List all organisations. Supports `?search=`, `?type=`, `?status=`, `?sector=`, `?region=` query params. Returns `contactCount` and `engagementCount` per row. |
+| `GET` | `/api/organisations` | Any | List all organisations. Supports `?search=`, `?type=`, `?status=`, `?sector=`, `?region=`. Returns `contactCount` and `engagementCount` per row. |
 | `POST` | `/api/organisations` | engagement_user+ | Create an organisation. Logs `org_created` activity. |
 | `GET` | `/api/organisations/:id` | Any | Get a single organisation with linked engagements, contacts, and activity log. |
 | `PUT` | `/api/organisations/:id` | engagement_user+ | Update an organisation. |
@@ -334,11 +394,13 @@ All routes require a valid `Authorization: Bearer <token>` header except `GET /a
 
 | Method | Path | Role required | Description |
 |---|---|---|---|
-| `GET` | `/api/engagements` | Any | List engagements. Supports `?search=`, `?stage=`, `?status=`, `?organisationId=`. Returns `organisationName`, `contactName`, `ownerName`. |
-| `POST` | `/api/engagements` | engagement_user+ | Create an engagement. Logs `engagement_created` to both the engagement and its organisation. |
+| `GET` | `/api/engagements` | Any | List engagements. Supports `?search=`, `?stage=`, `?status=`, `?organisationId=`, `?engagementType=`, `?sdrOwnerUserId=`. Returns `organisationName`, `contactName`, `ownerName`, `sdrOwnerName`. |
+| `POST` | `/api/engagements` | engagement_user+ | Create an engagement. If `engagementType=sdr`, automatically sets `sdrStage=new`, assigns `sdrOwnerUserId` to the current user, and creates an "Initial outreach" task. |
 | `GET` | `/api/engagements/:id` | Any | Get a single engagement with linked tasks and activity log. |
-| `PUT` | `/api/engagements/:id` | engagement_user+ | Update an engagement. If `stage` changes, logs `stage_changed` with `{ stageFrom, stageTo }` metadata. Triggers UI confirmation if moving to `won` or `dormant`. |
+| `PUT` | `/api/engagements/:id` | engagement_user+ | Update an engagement. Triggers SDR automations for stage transitions (see [Automations](#automations-business-logic-inventory)). |
 | `DELETE` | `/api/engagements/:id` | crm_manager+ | Delete an engagement. |
+| `POST` | `/api/engagements/:id/log-call` | engagement_user+ | Log a call outcome. Increments `callAttemptCount`, sets `lastCallDate`, `lastCallOutcome`, auto-advances `sdrStage` based on outcome, and sets contact/follow-up flags. |
+| `POST` | `/api/engagements/:id/handover` | engagement_user+ | Hand over an SDR prospect to an Account Executive. Sets `sdrStage=qualified`, creates or reuses an `employer_engagement` for the same organisation, optionally creates a follow-up task. |
 
 ### Tasks
 
@@ -356,11 +418,13 @@ All routes require a valid `Authorization: Bearer <token>` header except `GET /a
 |---|---|---|---|
 | `GET` | `/api/activity` | Any | Query the activity log. Requires `?entityType=` and `?entityId=`. Returns entries in reverse chronological order. |
 
-### Dashboard & Users
+### Dashboard & Reporting
 
 | Method | Path | Role required | Description |
 |---|---|---|---|
-| `GET` | `/api/dashboard/summary` | Any | Returns KPI counts, chart data (`engagementsByStage`, `tasksByStatus`, `organisationsByType`), `myOpenTasks`, `recentOrganisations`, `upcomingNextActions`. |
+| `GET` | `/api/dashboard/summary` | Any | Main CRM dashboard: KPI counts, `engagementsByStage`, `tasksByStatus`, `organisationsByType`, `myOpenTasks`, `recentOrganisations`, `upcomingNextActions`. |
+| `GET` | `/api/dashboard/sdr` | Any | SDR Pipeline dashboard: `callsToday`, `dueFollowUpsToday`, `overdueFollowUps`, `meetingsBookedThisWeek`, `qualifiedLeads`, `newProspects`, `prospectsByStage`, `conversionFunnel`, `myTasks`, `recentProspects`. |
+| `GET` | `/api/dashboard/sdr/manager` | Any | SDR Manager report: `repPerformance` (calls, contacts, meetings, qualified per rep), `meetingsByWeek` (8-week trend), `terminalStageDistribution`, `overdueFollowUps` (detail list). |
 | `GET` | `/api/users` | Any | List active users (for owner/assignee dropdowns). |
 | `GET` | `/api/users/:id` | Any | Get a user profile. |
 | `PUT` | `/api/users/:id` | Same user or admin | Update profile (name, email, password). |
@@ -376,17 +440,15 @@ All routes require a valid `Authorization: Bearer <token>` header except `GET /a
 |---|---|---|---|
 | Organisation | `organisations` | **Account** | `account` |
 | Contact | `contacts` | **Contact** | `contact` |
-| Engagement | `engagements` | **Opportunity** (standard) or custom **Engagement** table | `opportunity` / `crm_engagement` |
+| Engagement (employer) | `engagements` where `engagement_type='employer_engagement'` | **Opportunity** (standard) or custom **Engagement** table | `opportunity` / `crm_engagement` |
+| SDR Prospect | `engagements` where `engagement_type='sdr'` | **Lead** (standard) or custom **SDR Prospect** entity | `lead` / `crm_sdrprospect` |
 | Task | `tasks` | **Task** (Activity) | `task` |
 | User | `users` | **SystemUser** | `systemuser` |
 | Activity Log | `activity_log` | **Timeline** (native) or custom **Audit Log** entity | `activitypointer` / `crm_activitylog` |
 
-#### Decision note: Opportunity vs custom Engagement entity
+#### Decision note: SDR Prospects — Lead vs custom entity
 
-The standard D365 **Opportunity** entity covers most of the `engagements` table. However, the `expected_learner_volume`, `next_action_date`, and `next_action_note` fields are not standard. Two paths:
-
-- **Use standard Opportunity** — add the three fields as custom columns (`crm_expectedlearnervolume`, `crm_nextactiondate`, `crm_nextactionnote`). Preferred if the organisation already uses D365 Sales.
-- **Create a custom Engagement entity** — gives full control and avoids polluting the Opportunity form. Preferred for education-sector implementations without a sales module.
+The `sdr` engagement type maps most naturally to the D365 **Lead** entity (which has built-in `leadqualificationcode`, `donotphone`, and activity tracking). However, if the organisation does not use the standard Lead → Opportunity conversion flow, a custom `crm_sdrprospect` entity avoids polluting the Lead form and gives full control over the 12-stage `crm_sdrstage` picklist.
 
 ---
 
@@ -427,6 +489,8 @@ The standard D365 **Opportunity** entity covers most of the `engagements` table.
 
 ### Field mapping: Engagement → Opportunity / custom entity
 
+**Employer engagement fields:**
+
 | MVP column | D365 attribute | Type in D365 | Notes |
 |---|---|---|---|
 | `id` | `opportunityid` | UniqueIdentifier (GUID) | |
@@ -443,6 +507,31 @@ The standard D365 **Opportunity** entity covers most of the `engagements` table.
 | `next_action_date` | `crm_nextactiondate` | DateOnly | **Custom column** |
 | `next_action_note` | `crm_nextactionnote` | MultiLine.Text | **Custom column** |
 | `notes` | `description` | MultiLine.Text | |
+
+**SDR-specific fields** (map to Lead or custom `crm_sdrprospect` entity):
+
+| MVP column | D365 attribute | Type in D365 | Notes |
+|---|---|---|---|
+| `sdr_stage` | `crm_sdrstage` | OptionSet (12 values) | **Custom column** — see stage list in schema section |
+| `sdr_owner_user_id` | `crm_sdrownerid` | SystemUser lookup | **Custom column** — the SDR rep |
+| `handover_owner_user_id` | `crm_handoverownerid` | SystemUser lookup | **Custom column** — the AE/BD rep |
+| `handover_status` | `crm_handoverstatus` | OptionSet | pending / complete |
+| `call_attempt_count` | `crm_callattemptcount` | WholeNumber | **Custom column** |
+| `last_call_date` | `crm_lastcalldate` | DateOnly | **Custom column** |
+| `last_call_outcome` | `crm_lastcalloutcome` | OptionSet (9 values) | **Custom column** — maps to Phone Call activity `directioncode` + custom result |
+| `next_call_date` | `crm_nextcalldate` | DateOnly | **Custom column** |
+| `contact_made` | `crm_contactmade` | TwoOptions | **Custom column** |
+| `voicemail_left` | `crm_voicemailleft` | TwoOptions | **Custom column** |
+| `follow_up_required` | `crm_followuprequired` | TwoOptions | **Custom column** |
+| `follow_up_reason` | `crm_followupreason` | MultiLine.Text | **Custom column** |
+| `meeting_booked` | `crm_meetingbooked` | TwoOptions | **Custom column** |
+| `meeting_date` | `crm_meetingdate` | DateOnly | **Custom column** |
+| `sql_status` | `crm_sqlstatus` | TwoOptions | **Custom column** — Sales Qualified Lead flag |
+| `mql_status` | `crm_mqlstatus` | TwoOptions | **Custom column** — Marketing Qualified Lead flag |
+| `latest_note` | `crm_latestnote` | MultiLine.Text | **Custom column** — appended on each call log |
+| `disqualification_reason` | `crm_disqualificationreason` | MultiLine.Text | **Custom column** — required on disqualify |
+
+**D365 migration note on Phone Call activities:** The `log-call` endpoint creates a summary entry in `activity_log`. On D365 migration, each call log should create a native **Phone Call** activity record (`phonecall` entity) linked to the Lead/Opportunity via `regardingobjectid`. The `last_call_outcome` maps to a custom result field on the Phone Call form.
 
 ---
 
@@ -482,10 +571,10 @@ The standard D365 **Opportunity** entity covers most of the `engagements` table.
 | `event_type` | Custom status reason or `crm_eventtype` column | Create a custom Audit Log entity or use Timeline notes |
 | `entity_type` + `entity_id` | `regardingobjectid` + `regardingobjecttypecode` | Native polymorphic regarding lookup |
 | `actor_user_id` | `ownerid` | |
-| `metadata` (JSONB) | Decompose into typed columns | e.g. `crm_stagefrom` / `crm_stageto` for stage_changed; `crm_contactname` for contact_added |
+| `metadata` (JSONB) | Decompose into typed columns | e.g. `crm_stagefrom` / `crm_stageto` for stage_changed; `crm_calloutcome` for call_logged |
 | `created_at` | `createdon` | Set by platform |
 
-**Recommendation:** On migration, replace the custom `activity_log` table with the D365 native **Timeline** (which records both system-generated and manual notes/activities on any entity). The five `event_type` values map to:
+**Event type mapping:**
 
 | Event | D365 mechanism |
 |---|---|
@@ -494,6 +583,8 @@ The standard D365 **Opportunity** entity covers most of the `engagements` table.
 | `engagement_created` | Native audit log; or custom Timeline note |
 | `stage_changed` | Business Process Flow stage history, or Power Automate note to Timeline |
 | `task_completed` | Activity status change (system-tracked) |
+| `call_logged` | Native Phone Call activity record (`phonecall` entity) |
+| `task_created` | Native Task activity record (system-tracked) |
 
 ---
 
@@ -501,63 +592,101 @@ The standard D365 **Opportunity** entity covers most of the `engagements` table.
 
 ### What moves to Dataverse
 
-**All five core tables** (`organisations`, `contacts`, `engagements`, `tasks`, `activity_log`) become Dataverse entities. The field-level mappings are documented above.
+**All six core tables** (`organisations`, `contacts`, `engagements`, `tasks`, `activity_log`, and the SDR fields within `engagements`) become Dataverse entities. The field-level mappings are documented above.
 
 Additional considerations:
 - The current **PostgreSQL indexes** map to Dataverse **Quick Find** column configuration and search indexes — configure these on the entity forms.
-- **Picklist values** (status, type, sector, stage, priority) become **Choice columns** (formerly OptionSets) in Dataverse. The values are defined in the field mapping tables above.
-- **Relationships** (organisation ↔ contact, engagement ↔ task) become native Dataverse **N:1 relationships** — these generate parent-side relationship columns automatically.
-- The `owner_user_id` / `assigned_user_id` pattern maps directly to the Dataverse **Owner** field type, which supports both User and Team ownership.
+- **Picklist values** (status, type, sector, stage, sdr_stage, priority, last_call_outcome) become **Choice columns** (formerly OptionSets) in Dataverse.
+- **Relationships** (organisation ↔ contact, engagement ↔ task) become native Dataverse **N:1 relationships**.
+- The `owner_user_id` / `sdr_owner_user_id` / `assigned_user_id` pattern maps to the Dataverse **Owner** field type.
+- The SDR `engagement_type` discriminator can be handled via a separate `crm_sdrprospect` entity, or a shared Opportunity/Lead table filtered by a custom type field.
 
 ### What moves to Power Automate
 
-The following automations are implemented as **server-side business logic** in the Express API today. On D365 migration, these should become **Power Automate cloud flows** (or Dataverse plug-ins for synchronous requirements):
-
-| Automation | Trigger (MVP) | Power Automate equivalent |
+| Automation | Trigger (MVP) | Power Automate / D365 equivalent |
 |---|---|---|
-| **Post-create org prompt** — "What's next?" modal | `POST /api/organisations` response | When a row is added to `account` → send adaptive card or trigger task creation flow |
-| **Auto-task from engagement** — prompt on `nextActionDate` set | `POST /api/engagements` if `nextActionDate` present | When Opportunity row is created with `crm_nextactiondate` → create a linked Task record |
-| **Overdue task marking** — cron job marks open tasks past due date as `overdue` | Server-side scheduled job every hour | Scheduled flow: daily query of open Tasks where `scheduledend < today` → update `statuscode` to Overdue |
-| **Stage → Won confirmation** — confirm dialog before closing | `PUT /api/engagements/:id` stage change | Business Process Flow stage gate, or a Dataverse real-time workflow on Opportunity close |
-| **Stage → Dormant reason capture** — modal to record reason | `PUT /api/engagements/:id` stage change | Power Automate approval flow or Business Rule on the Engagement form to require a reason field |
+| **SDR creation defaults** — `sdrStage=new`, assign SDR owner | `POST /api/engagements` (type=sdr) | When Lead/SDR Prospect created → set default stage and owner via Business Rule or Automate flow |
+| **Auto-create initial outreach task** | `POST /api/engagements` (type=sdr) | When Lead created → Create linked Phone Call / Task activity |
+| **Stage auto-advance on call outcome** | `POST /api/engagements/:id/log-call` | When Phone Call activity closed with specific result → update Lead stage via Power Automate |
+| **Contact made flag** | log-call with spoke_* outcome | When Phone Call result = spoke → set `crm_contactmade = true` via Business Rule |
+| **Follow-up required flag** | log-call with spoke_call_back_later / spoke_send_info | When Phone Call result = callback/send info → set `crm_followuprequired = true`, populate `crm_nextcalldate` |
+| **Meeting booked flag + prep task** | `PUT` or log-call with meeting_booked outcome | When `crm_meetingbooked` flips to true → create "Prepare for meeting" Task (high priority) |
+| **Disqualify requires reason** | `PUT` with sdrStage=disqualified | Business Rule: `crm_disqualificationreason` required when `crm_sdrstage = Disqualified` |
+| **Terminal stage → closed_lost** | `PUT` with disqualified/do_not_contact etc. | Business Rule or Power Automate: set Opportunity `statuscode = Closed Lost` |
+| **Qualified → SQL flag** | `PUT` with sdrStage=qualified | Business Rule: `crm_sqlstatus = true` when stage = Qualified |
+| **Handover → create employer engagement** | `POST /api/engagements/:id/handover` | Power Automate flow: when handover triggered → create/update linked Opportunity, assign to AE, create kickoff task |
+| **Post-create org next steps** | `POST /api/organisations` | When Account created → send adaptive card or trigger task creation flow |
+| **Overdue task marking** | Server-side scheduled job | Scheduled flow: daily query of open Tasks where `scheduledend < today` → update `statuscode` |
 
-**File:** `artifacts/api-server/src/routes/engagements.ts` — all five automations are implemented here and in the frontend pages. Review these before migration to ensure Power Automate coverage.
+**File:** `artifacts/api-server/src/routes/engagements.ts` — all SDR automations are implemented here, annotated with `// D365 migration:` comments pointing to their Power Automate / Business Rule equivalents.
 
 ### What moves to Power BI
 
-The following data surfaces in the MVP Dashboard should become **Power BI reports** or **Dataverse dashboards**:
-
 | Dashboard panel | Current implementation | Power BI / D365 equivalent |
 |---|---|---|
-| Engagement pipeline by stage | Recharts bar chart on `/api/dashboard/summary` | Power BI bar chart on Opportunity by `salesstage`; or D365 native funnel chart |
+| Engagement pipeline by stage | Recharts bar chart on `/api/dashboard/summary` | Power BI bar chart on Opportunity by `salesstage` |
 | Active tasks by status | Recharts donut chart | Power BI donut on Task by `statuscode` |
 | Organisations by type | Recharts horizontal bar | Power BI bar on Account by `customertypecode` |
 | My Open Tasks | Filtered task list | D365 personal view: "My Open Tasks" |
 | Recent Organisations | List with links | D365 system view: "Recently Modified Accounts" |
-| Upcoming Next Actions | Engagement list sorted by `next_action_date` | Power BI table or D365 Activity Feed |
-| KPI summary cards (Total Orgs, Won, Overdue) | Aggregated counts in Express route | Power BI card visuals or D365 goal metrics |
+| **SDR Pipeline Breakdown** | Recharts bar on `/api/dashboard/sdr` | Power BI bar on Lead/SDR Prospect by `crm_sdrstage` |
+| **SDR Conversion Funnel** | FunnelBar on SDR dashboard | Power BI funnel chart: Prospects → Contact Made → Meeting → Qualified |
+| **Calls Today / Due Today** | Count cards on SDR dashboard | Power BI card visuals or D365 goal metrics |
+| **Rep Performance table** | Table on `/api/dashboard/sdr/manager` | Power BI table with per-rep: calls, contacts, meetings, qualified |
+| **Meetings by week** | Bar chart on SDR manager report | Power BI time-series bar with `crm_meetingdate` by ISO week |
+| **Terminal stage breakdown** | Pie chart on SDR manager report | Power BI donut on Lead by disqualification reason |
+| **Overdue follow-ups list** | Table on SDR manager report | D365 system view: "Overdue SDR Follow-ups" filtered by `crm_followuprequired = true` |
 
-**Power BI data source:** Connect directly to Dataverse using the **Power BI Dataverse connector** (no custom API needed). All aggregations currently done in `artifacts/api-server/src/routes/dashboard.ts` can be replaced by Power BI DAX measures.
+**Power BI data source:** Connect directly to Dataverse using the **Power BI Dataverse connector**. All aggregations currently in `artifacts/api-server/src/routes/dashboard.ts` can be replaced by Power BI DAX measures.
 
 ---
 
 ## Automations (business logic inventory)
 
-A complete inventory of automated behaviours in the MVP, for CRM developer reference:
+A complete inventory of automated behaviours, for CRM developer reference. SDR automations are in `artifacts/api-server/src/routes/engagements.ts`, each annotated with a `// D365 migration:` comment.
+
+### Core CRM automations
 
 | # | Name | Where implemented | Trigger | Behaviour |
 |---|---|---|---|---|
-| 1 | Post-create org next steps | `Organisations.tsx`, `POST /api/organisations` | Organisation created | Shows "What's next?" modal offering quick-create contact or engagement |
-| 2 | Auto-task prompt on engagement | `Engagements.tsx`, `POST /api/engagements` | Engagement created with `nextActionDate` | Prompts user to create a linked task pre-filled with next action details |
-| 3 | Overdue task auto-marking | `artifacts/api-server/src/routes/tasks.ts` (`markOverdueTasks`) | `GET /api/tasks` request | Marks all open/in_progress tasks where `due_date < today` as `overdue` |
-| 4 | Stage → Won confirm dialog | `EngagementDetail.tsx`, `PUT /api/engagements/:id` | Stage changed to `won` | Confirmation dialog before setting status to `closed_won` |
-| 5 | Stage → Dormant reason modal | `EngagementDetail.tsx`, `PUT /api/engagements/:id` | Stage changed to `dormant` | Modal captures a reason before saving |
+| A1 | Post-create org next steps | `Organisations.tsx`, `POST /api/organisations` | Organisation created | Shows "What's next?" modal offering quick-create contact or engagement |
+| A2 | Auto-task prompt on engagement | `Engagements.tsx`, `POST /api/engagements` | Engagement created with `nextActionDate` | Prompts user to create a linked task pre-filled with next action details |
+| A3 | Overdue task auto-marking | `tasks.ts` (`markOverdueTasks`) | `GET /api/tasks` request | Marks all open/in_progress tasks where `due_date < today` as `overdue` |
+| A4 | Stage → Won confirm dialog | `EngagementDetail.tsx`, `PUT /api/engagements/:id` | Stage changed to `won` | Confirmation dialog before setting `status = closed_won` |
+| A5 | Stage → Dormant reason modal | `EngagementDetail.tsx`, `PUT /api/engagements/:id` | Stage changed to `dormant` | Modal captures a reason before saving |
+
+### SDR automations
+
+| # | Name | Where implemented | Trigger | Behaviour |
+|---|---|---|---|---|
+| S1 | SDR creation defaults | `POST /api/engagements` | `engagementType=sdr` on create | Sets `sdrStage=new`; assigns `sdrOwnerUserId` to the creating user |
+| S2 | Auto-create initial outreach task | `POST /api/engagements` | `engagementType=sdr` on create | Creates "Initial outreach — {orgName}" task assigned to SDR owner |
+| S3 | Stage auto-advance from call outcome | `POST /api/engagements/:id/log-call` | Any call log | Derives new `sdrStage` from outcome: `no_answer/voicemail/gatekeeper` → `attempted_call`; `spoke_call_back_later/spoke_send_info` → `follow_up_required`; `spoke_interested` → `interested`; `meeting_booked` → `meeting_booked`; `wrong_person` → `no_contact` |
+| S4 | Contact made flag | `POST /api/engagements/:id/log-call` | `spoke_*` outcome | Sets `contactMade=true` |
+| S5 | Voicemail flag | `POST /api/engagements/:id/log-call` | `voicemail_left` outcome | Sets `voicemailLeft=true` |
+| S6 | Follow-up required flag | `PUT` or log-call | `sdrStage=follow_up_required` or callback/send-info outcome | Sets `followUpRequired=true`; stores `nextCallDate` and `followUpReason` |
+| S7 | Meeting booked flag + prep task | `PUT` or log-call with `meeting_booked` | `meetingBooked` flips to `true` | Sets `meetingBooked=true`; creates "Prepare for meeting — {orgName}" task (high priority, due on meeting date) |
+| S8 | Disqualify requires reason | `PUT /api/engagements/:id` | `sdrStage=disqualified` | Returns HTTP 400 if `disqualificationReason` is not provided |
+| S9 | Terminal stage → closed_lost | `PUT /api/engagements/:id` | Stage moves to `disqualified`, `do_not_contact`, `bad_data`, or `changed_job` | Auto-sets `status=closed_lost` |
+| S10 | Qualified → SQL flag | `PUT /api/engagements/:id` | `sdrStage=qualified` | Sets `sqlStatus=true` |
+| S11 | Handover → create employer engagement | `POST /api/engagements/:id/handover` | Handover submitted | Sets `sdrStage=qualified`, `handoverStatus=complete`; creates a new `employer_engagement` record for the same organisation (or reuses existing one); optionally creates a follow-up task for the receiving AE |
 
 ---
 
 ## Roadmap
 
-### MVP remaining items
+### Completed in current MVP
+- [x] Core CRM: organisations, contacts, engagements, tasks
+- [x] RBAC with 4 roles
+- [x] Activity log / timeline
+- [x] Microsoft Entra ID SSO migration path documented
+- [x] Full call-led SDR module (Call Queue, SDR Pipeline dashboard, SDR Performance report)
+- [x] 12-stage SDR pipeline with call outcome tracking
+- [x] 11 SDR automations (stage derivation, flags, task creation, handover)
+- [x] SDR manager performance report (rep table, meetings by week, terminal breakdown, overdue list)
+- [x] D365 migration reference for all SDR fields
+
+### Remaining MVP items
 - [ ] Task calendar view
 - [ ] Email activity logging
 - [ ] Reporting export (CSV)
@@ -566,11 +695,12 @@ A complete inventory of automated behaviours in the MVP, for CRM developer refer
 ### D365 migration steps (suggested order)
 
 1. **Provision D365 environment** — Sales or Customer Service licence, or Power Apps per-app
-2. **Create custom columns** — add `crm_expectedlearnervolume`, `crm_nextactiondate`, `crm_nextactionnote` to Opportunity
-3. **Create custom entities** — if using a custom Engagement entity instead of Opportunity
-4. **Import data** — export PostgreSQL tables to CSV; import via Power Platform data import wizard or Dataverse bulk import
-5. **Rebuild automations** — recreate the 5 automations (see above) in Power Automate
-6. **Replace Dashboard** — build Power BI report connected to Dataverse; embed in D365 dashboard
-7. **Replace auth** — integrate Entra ID; remove `password_hash` from user records
-8. **Decommission Express API** — once Power Apps / model-driven app is validated in UAT
-9. **Decommission React frontend** — replace with model-driven app or Canvas app connected to Dataverse
+2. **Create custom columns** — add SDR fields to Lead or custom `crm_sdrprospect` entity (see field mapping above)
+3. **Create custom entities** — if using a custom Engagement entity instead of Opportunity/Lead
+4. **Create Choice columns** — `crm_sdrstage` (12 values), `crm_lastcalloutcome` (9 values)
+5. **Import data** — export PostgreSQL tables to CSV; import via Power Platform data import wizard or Dataverse bulk import
+6. **Rebuild automations** — recreate the 11 SDR automations and 5 core automations in Power Automate / Business Rules (see inventory above)
+7. **Replace Dashboard & SDR reports** — build Power BI reports connected to Dataverse; embed in D365 dashboard
+8. **Replace auth** — integrate Entra ID; remove `password_hash` from user records
+9. **Decommission Express API** — once Power Apps / model-driven app is validated in UAT
+10. **Decommission React frontend** — replace with model-driven app or Canvas app connected to Dataverse
