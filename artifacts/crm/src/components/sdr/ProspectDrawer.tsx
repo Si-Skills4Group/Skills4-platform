@@ -3,7 +3,7 @@ import {
   ArrowRight, Sparkles, CheckSquare, Star, Phone,
   RefreshCw, User2, Hash, Target, ChevronDown,
   AlertTriangle, Send, PhoneCall, PhoneOff, Voicemail,
-  PhoneForwarded, Clock, CheckCircle2,
+  PhoneForwarded, Clock, CheckCircle2, RotateCcw,
 } from "lucide-react";
 import { useListActivity } from "@workspace/api-client-react";
 import type { Engagement, CallOutcome, SdrStage } from "@workspace/api-client-react";
@@ -395,8 +395,48 @@ export function ProspectDrawer({ engagement, onClose, onAction, isMutating }: Pr
             {/* ── Scrollable body ── */}
             <div className="flex-1 overflow-y-auto">
 
-              {/* Follow-up alert — top priority when active */}
-              {engagement.followUpRequired && (
+              {/* Follow-up alert — contextual per outcome type */}
+              {engagement.followUpRequired && engagement.lastCallOutcome === "spoke_call_back_later" && (
+                <div className="px-4 py-3 border-b bg-amber-50 border-amber-100">
+                  <div className="flex items-start gap-2.5">
+                    <div className="mt-0.5 flex-shrink-0 w-7 h-7 rounded-full bg-amber-100 border border-amber-200 flex items-center justify-center">
+                      <RotateCcw size={13} className="text-amber-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] uppercase font-semibold text-amber-700 tracking-wide">Callback Requested</p>
+                      <p className="text-sm text-amber-900 leading-snug mt-0.5">
+                        {engagement.followUpReason ?? "They asked to be called back — confirm timing before dialling."}
+                      </p>
+                      {engagement.nextCallDate && (
+                        <p className="text-[11px] text-amber-700 mt-1 font-medium">
+                          Call back on {new Date(engagement.nextCallDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {engagement.followUpRequired && engagement.lastCallOutcome === "spoke_send_info" && (
+                <div className="px-4 py-3 border-b bg-cyan-50 border-cyan-100">
+                  <div className="flex items-start gap-2.5">
+                    <div className="mt-0.5 flex-shrink-0 w-7 h-7 rounded-full bg-cyan-100 border border-cyan-200 flex items-center justify-center">
+                      <Send size={13} className="text-cyan-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] uppercase font-semibold text-cyan-700 tracking-wide">Send Info Before Calling Back</p>
+                      <p className="text-sm text-cyan-900 leading-snug mt-0.5">
+                        {engagement.followUpReason ?? "They asked to receive materials before the next conversation."}
+                      </p>
+                      {engagement.nextCallDate && (
+                        <p className="text-[11px] text-cyan-700 mt-1 font-medium">
+                          Follow-up call scheduled for {new Date(engagement.nextCallDate + "T00:00:00").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {engagement.followUpRequired && engagement.lastCallOutcome !== "spoke_call_back_later" && engagement.lastCallOutcome !== "spoke_send_info" && (
                 <div className="px-4 py-3 border-b bg-amber-50 border-amber-100">
                   <div className="flex items-center gap-1.5 mb-1">
                     <AlertTriangle size={12} className="text-amber-600 flex-shrink-0" />

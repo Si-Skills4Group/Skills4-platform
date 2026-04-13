@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import {
   SlidersHorizontal, Search, RefreshCw, ArrowUpDown, ChevronDown,
   CalendarCheck, AlertTriangle, Trophy, Phone, PhoneCall, PhoneOff,
-  Voicemail, PhoneForwarded, CheckCircle2, Plus,
+  Voicemail, PhoneForwarded, CheckCircle2, Plus, RotateCcw, Send, Mail,
 } from "lucide-react";
 import {
   useListEngagements, useUpdateEngagement, useCreateTask,
@@ -43,6 +43,25 @@ type ActiveModal =
 
 // ─── Log Call Modal ───────────────────────────────────────────────────────────
 
+function addDays(n: number): string {
+  const d = new Date(); d.setDate(d.getDate() + n);
+  return d.toISOString().split("T")[0];
+}
+
+const DATE_PRESETS = [
+  { label: "Tomorrow",  days: 1  },
+  { label: "2 days",    days: 2  },
+  { label: "3 days",    days: 3  },
+  { label: "1 week",    days: 7  },
+  { label: "2 weeks",   days: 14 },
+];
+
+const OUTCOME_DEFAULTS: Partial<Record<CallOutcome, { days: number; reasonPlaceholder: string; notePlaceholder: string }>> = {
+  spoke_call_back_later: { days: 3,  reasonPlaceholder: 'e.g. "Busy this week — call back Thursday after 2pm"', notePlaceholder: "What did they say? Any signals of interest?" },
+  spoke_send_info:       { days: 7,  reasonPlaceholder: 'e.g. "Wants Level 3 Apprenticeship overview and pricing"', notePlaceholder: "What exactly do they want? Note any specifics." },
+  meeting_booked:        { days: 7,  reasonPlaceholder: "", notePlaceholder: "Any pre-meeting notes or context?" },
+};
+
 function LogCallModal({ open, onClose, engagement, presetOutcome, onConfirm, loading }: {
   open: boolean; onClose: () => void; engagement: Engagement | null;
   presetOutcome?: CallOutcome;
@@ -54,29 +73,47 @@ function LogCallModal({ open, onClose, engagement, presetOutcome, onConfirm, loa
   const [note, setNote] = useState("");
   const [followUpReason, setFollowUpReason] = useState("");
 
+  const applyOutcome = (v: CallOutcome) => {
+    setOutcome(v);
+    const def = OUTCOME_DEFAULTS[v];
+    if (def?.days) setNextCallDate(addDays(def.days));
+    else setNextCallDate("");
+  };
+
   useEffect(() => {
     if (open) {
-      setOutcome(presetOutcome ?? "no_answer");
-      setNextCallDate(""); setNote(""); setFollowUpReason("");
+      const o = presetOutcome ?? "no_answer";
+      applyOutcome(o);
+      setNote(""); setFollowUpReason("");
     }
-  }, [open, presetOutcome]);
+  }, [open, presetOutcome]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const needsFollowUp = outcome === "spoke_call_back_later" || outcome === "spoke_send_info" || outcome === "meeting_booked";
-  const outcomeConfig = CALL_OUTCOME_CONFIG.find((o) => o.value === outcome);
+  const isWarmCallback = outcome === "spoke_call_back_later";
+  const isSendInfo     = outcome === "spoke_send_info";
+  const isMeeting      = outcome === "meeting_booked";
+  const needsDate      = isWarmCallback || isSendInfo || isMeeting;
+  const def            = OUTCOME_DEFAULTS[outcome];
 
   return (
     <Modal open={open} onClose={onClose} title="Log Call" size="sm">
-      <div className="p-6 space-y-4">
+      <div className="p-5 space-y-4">
+        {/* Prospect context */}
         {engagement && (
           <div className="rounded-lg bg-muted/50 border px-3 py-2.5 space-y-0.5 text-sm">
             <div className="font-semibold">{engagement.organisationName ?? engagement.title}</div>
             {engagement.contactName && <div className="text-muted-foreground text-xs">{engagement.contactName}</div>}
+            {engagement.callAttemptCount > 0 && (
+              <div className="text-[11px] text-muted-foreground flex items-center gap-1 pt-0.5">
+                <Phone size={9} /> {engagement.callAttemptCount} call{engagement.callAttemptCount !== 1 ? "s" : ""} so far
+              </div>
+            )}
           </div>
         )}
 
+        {/* Outcome selector */}
         <div className="space-y-1.5">
           <Label>Call outcome <span className="text-destructive">*</span></Label>
-          <Select value={outcome} onValueChange={(v) => setOutcome(v as CallOutcome)}>
+          <Select value={outcome} onValueChange={(v) => applyOutcome(v as CallOutcome)}>
             <SelectOption value="" disabled>Select outcome…</SelectOption>
             <SelectOption value="no_answer">No Answer</SelectOption>
             <SelectOption value="voicemail_left">Voicemail Left</SelectOption>
@@ -88,50 +125,119 @@ function LogCallModal({ open, onClose, engagement, presetOutcome, onConfirm, loa
             <SelectOption value="spoke_interested">Spoke – Interested</SelectOption>
             <SelectOption value="meeting_booked">Meeting Booked</SelectOption>
           </Select>
-          {outcomeConfig && (
-            <p className="text-xs text-muted-foreground">
-              {outcome === "no_answer" && "Will move stage to Attempted Call"}
-              {outcome === "voicemail_left" && "Will move stage to Attempted Call"}
-              {outcome === "gatekeeper" && "Will move stage to Attempted Call"}
-              {outcome === "wrong_person" && "Will move stage to No Contact"}
-              {outcome === "spoke_call_back_later" && "Will move stage to Follow-up Required"}
-              {outcome === "spoke_send_info" && "Will move stage to Follow-up Required"}
-              {outcome === "spoke_not_interested" && "Will move stage to Contact Made"}
-              {outcome === "spoke_interested" && "Will move stage to Interested"}
-              {outcome === "meeting_booked" && "Will move stage to Meeting Booked"}
-            </p>
-          )}
         </div>
 
-        {needsFollowUp && (
-          <div className="space-y-1.5">
-            <Label>{outcome === "meeting_booked" ? "Meeting date" : "Follow-up / call-back date"} <span className="text-destructive">*</span></Label>
-            <Input type="date" value={nextCallDate} onChange={(e) => setNextCallDate(e.target.value)} />
+        {/* Warm callback guidance */}
+        {isWarmCallback && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 flex items-start gap-2">
+            <RotateCcw size={14} className="text-amber-600 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-xs font-semibold text-amber-800">Callback requested</p>
+              <p className="text-xs text-amber-700 mt-0.5">They're interested — set a specific call-back date and note what was agreed.</p>
+            </div>
           </div>
         )}
 
-        {(outcome === "spoke_call_back_later" || outcome === "spoke_send_info") && (
-          <div className="space-y-1.5">
-            <Label>Reason / context <span className="text-muted-foreground font-normal">(optional)</span></Label>
-            <Input value={followUpReason} onChange={(e) => setFollowUpReason(e.target.value)} placeholder='e.g. "Interested but busy — call in 4 days"' />
+        {/* Send info guidance */}
+        {isSendInfo && (
+          <div className="rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-2.5 flex items-start gap-2">
+            <Send size={14} className="text-cyan-600 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-xs font-semibold text-cyan-800">Send info before calling back</p>
+              <p className="text-xs text-cyan-700 mt-0.5">Note exactly what to send, then schedule a follow-up call for after they've had time to review it.</p>
+            </div>
           </div>
         )}
 
+        {/* Warm-outcome date presets + date picker */}
+        {needsDate && (
+          <div className="space-y-2">
+            <Label>{isMeeting ? "Meeting date" : "Call back on"} <span className="text-destructive">*</span></Label>
+            {!isMeeting && (
+              <div className="flex flex-wrap gap-1.5">
+                {DATE_PRESETS.map((p) => {
+                  const val = addDays(p.days);
+                  return (
+                    <button
+                      key={p.days}
+                      type="button"
+                      onClick={() => setNextCallDate(val)}
+                      className={cn(
+                        "text-xs px-2.5 py-1 rounded-full border font-medium transition-colors",
+                        nextCallDate === val
+                          ? isWarmCallback
+                            ? "bg-amber-500 text-white border-amber-500"
+                            : "bg-cyan-500 text-white border-cyan-500"
+                          : "bg-white border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                      )}
+                    >
+                      {p.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <Input
+              type="date"
+              value={nextCallDate}
+              onChange={(e) => setNextCallDate(e.target.value)}
+            />
+          </div>
+        )}
+
+        {/* What to send / callback context */}
+        {(isWarmCallback || isSendInfo) && (
+          <div className="space-y-1.5">
+            <Label>
+              {isSendInfo ? "What to send" : "Follow-up context"}
+              <span className="text-muted-foreground font-normal ml-1">(optional)</span>
+            </Label>
+            <Input
+              value={followUpReason}
+              onChange={(e) => setFollowUpReason(e.target.value)}
+              placeholder={def?.reasonPlaceholder ?? ""}
+            />
+          </div>
+        )}
+
+        {/* Call note */}
         <div className="space-y-1.5">
           <Label>Call note <span className="text-muted-foreground font-normal">(optional)</span></Label>
-          <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Brief notes from the call…" />
+          <Textarea
+            rows={2}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder={def?.notePlaceholder ?? "Brief notes from the call…"}
+          />
         </div>
+
+        {/* Stage hint */}
+        <p className="text-xs text-muted-foreground -mt-1">
+          {outcome === "no_answer" && "Stage → Attempted Call"}
+          {outcome === "voicemail_left" && "Stage → Attempted Call"}
+          {outcome === "gatekeeper" && "Stage → Attempted Call"}
+          {outcome === "wrong_person" && "Stage → No Contact"}
+          {isWarmCallback && "Stage → Follow-up Required"}
+          {isSendInfo && "Stage → Follow-up Required"}
+          {outcome === "spoke_not_interested" && "Stage → Contact Made"}
+          {outcome === "spoke_interested" && "Stage → Interested"}
+          {isMeeting && "Stage → Meeting Booked"}
+        </p>
 
         <div className="flex gap-2 justify-end pt-1">
           <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
           <Button
             size="sm"
             onClick={() => onConfirm(outcome, nextCallDate, note, followUpReason)}
-            disabled={loading || !outcome || (needsFollowUp && !nextCallDate)}
-            className="gap-1.5"
+            disabled={loading || !outcome || (needsDate && !nextCallDate)}
+            className={cn(
+              "gap-1.5",
+              isWarmCallback && "bg-amber-500 hover:bg-amber-600",
+              isSendInfo && "bg-cyan-600 hover:bg-cyan-700"
+            )}
           >
             {loading ? <RefreshCw size={13} className="animate-spin" /> : <Phone size={13} />}
-            Log Call
+            {isWarmCallback ? "Schedule Callback" : isSendInfo ? "Log & Send Info" : "Log Call"}
           </Button>
         </div>
       </div>
@@ -365,7 +471,17 @@ function ProspectRow({ eng, selected, onClick }: {
           ) : (
             <p className="text-xs text-muted-foreground/40 truncate italic">No contact</p>
           )}
-          {eng.followUpRequired && (
+          {eng.lastCallOutcome === "spoke_call_back_later" && (
+            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-amber-700 bg-amber-100 border border-amber-200 px-1 py-px rounded flex-shrink-0">
+              <RotateCcw size={8} /> Callback
+            </span>
+          )}
+          {eng.lastCallOutcome === "spoke_send_info" && (
+            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-cyan-700 bg-cyan-100 border border-cyan-200 px-1 py-px rounded flex-shrink-0">
+              <Send size={8} /> Send info
+            </span>
+          )}
+          {eng.followUpRequired && eng.lastCallOutcome !== "spoke_call_back_later" && eng.lastCallOutcome !== "spoke_send_info" && (
             <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-amber-700 bg-amber-100 border border-amber-200 px-1 py-px rounded flex-shrink-0">
               <AlertTriangle size={8} /> Follow-up
             </span>
