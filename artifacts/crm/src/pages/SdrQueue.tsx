@@ -302,6 +302,18 @@ function HandoverModal({ open, onClose, engagement, users, onConfirm, loading }:
 
 // ─── Prospect Row ─────────────────────────────────────────────────────────────
 
+function relativeCallDate(dateStr: string | null | undefined): { label: string; overdue: boolean; today: boolean } | null {
+  if (!dateStr) return null;
+  const now = new Date(); now.setHours(0, 0, 0, 0);
+  const d = new Date(dateStr); d.setHours(0, 0, 0, 0);
+  const diff = Math.round((d.getTime() - now.getTime()) / 86400000);
+  if (diff === 0) return { label: "Today", overdue: false, today: true };
+  if (diff === 1) return { label: "Tomorrow", overdue: false, today: false };
+  if (diff === -1) return { label: "Yesterday", overdue: true, today: false };
+  if (diff < 0) return { label: `${-diff}d overdue`, overdue: true, today: false };
+  return { label: formatDate(dateStr), overdue: false, today: false };
+}
+
 function OwnerInitials({ name }: { name: string | null | undefined }) {
   if (!name) return <span className="text-muted-foreground text-xs">—</span>;
   const initials = name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
@@ -327,15 +339,19 @@ function ProspectRow({ eng, selected, onClick }: {
   eng: Engagement; selected: boolean; onClick: () => void;
 }) {
   const nextDate = eng.nextCallDate ?? eng.nextActionDate;
-  const nextOverdue = isOverdue(nextDate);
+  const rel = relativeCallDate(nextDate);
 
   return (
     <div
       onClick={onClick}
       className={cn(
-        "grid items-center gap-x-3 px-4 py-2.5 cursor-pointer transition-colors border-b border-border/50 hover:bg-slate-50/80",
-        "grid-cols-[minmax(0,2fr)_minmax(0,130px)_minmax(0,150px)_28px_80px_40px]",
-        selected && "bg-primary/5 border-l-2 border-l-primary"
+        "grid items-center gap-x-3 px-4 py-2.5 cursor-pointer transition-colors border-b border-border/50",
+        "grid-cols-[minmax(0,2fr)_minmax(0,130px)_minmax(0,150px)_28px_90px_40px]",
+        selected
+          ? "bg-primary/5 border-l-2 border-l-primary"
+          : rel?.overdue
+            ? "bg-amber-50/60 hover:bg-amber-50"
+            : "hover:bg-slate-50/80"
       )}
     >
       {/* Contact + Org */}
@@ -343,11 +359,18 @@ function ProspectRow({ eng, selected, onClick }: {
         <p className="text-sm font-semibold text-foreground truncate leading-tight">
           {eng.organisationName ?? eng.title}
         </p>
-        {eng.contactName ? (
-          <p className="text-xs text-muted-foreground truncate mt-0.5">{eng.contactName}</p>
-        ) : (
-          <p className="text-xs text-muted-foreground/40 truncate mt-0.5 italic">No contact</p>
-        )}
+        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+          {eng.contactName ? (
+            <p className="text-xs text-muted-foreground truncate">{eng.contactName}</p>
+          ) : (
+            <p className="text-xs text-muted-foreground/40 truncate italic">No contact</p>
+          )}
+          {eng.followUpRequired && (
+            <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-amber-700 bg-amber-100 border border-amber-200 px-1 py-px rounded flex-shrink-0">
+              <AlertTriangle size={8} /> Follow-up
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Stage */}
@@ -381,12 +404,15 @@ function ProspectRow({ eng, selected, onClick }: {
         <OwnerInitials name={eng.sdrOwnerName ?? eng.ownerName} />
       </div>
 
-      {/* Next Action / Call */}
-      <div className="text-xs tabular-nums">
-        {nextDate ? (
-          <span className={cn("flex items-center gap-0.5", nextOverdue ? "text-red-600 font-semibold" : "text-muted-foreground")}>
-            {nextOverdue && <AlertTriangle size={9} />}
-            {formatDate(nextDate)}
+      {/* Next Call — relative label */}
+      <div className="text-xs tabular-nums min-w-0">
+        {rel ? (
+          <span className={cn(
+            "inline-flex items-center gap-0.5 font-medium truncate",
+            rel.overdue ? "text-red-600 font-semibold" : rel.today ? "text-emerald-600 font-semibold" : "text-muted-foreground"
+          )}>
+            {rel.overdue && <AlertTriangle size={9} className="flex-shrink-0" />}
+            {rel.label}
           </span>
         ) : (
           <span className="text-muted-foreground/30">—</span>
@@ -395,8 +421,11 @@ function ProspectRow({ eng, selected, onClick }: {
 
       {/* Call count */}
       <div className="text-xs text-center tabular-nums">
-        {eng.callAttemptCount > 0 ? (
-          <span className="inline-flex items-center justify-center gap-0.5 w-auto px-1.5 h-5 rounded-full bg-violet-100 text-violet-700 text-[11px] font-medium">
+        {(eng.callAttemptCount ?? 0) > 0 ? (
+          <span className={cn(
+            "inline-flex items-center justify-center gap-0.5 px-1.5 h-5 rounded-full text-[11px] font-semibold",
+            (eng.callAttemptCount ?? 0) >= 5 ? "bg-red-100 text-red-700" : "bg-violet-100 text-violet-700"
+          )}>
             <Phone size={9} /> {eng.callAttemptCount}
           </span>
         ) : (
@@ -451,7 +480,7 @@ export default function SdrQueue() {
 
   const [funnelFilter, setFunnelFilter] = useState("");
   const [search, setSearch] = useState("");
-  const [sort, setSort] = useState("lastActivity");
+  const [sort, setSort] = useState("nextCallDate");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [selectedEng, setSelectedEng] = useState<Engagement | null>(null);
@@ -653,7 +682,7 @@ export default function SdrQueue() {
           {/* Table header */}
           <div className={cn(
             "grid items-center gap-x-3 px-4 py-2 bg-muted/40 border-b border-border/50 flex-shrink-0",
-            "grid-cols-[minmax(0,2fr)_minmax(0,130px)_minmax(0,150px)_28px_80px_40px]"
+            "grid-cols-[minmax(0,2fr)_minmax(0,130px)_minmax(0,150px)_28px_90px_40px]"
           )}>
             <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Contact / Org</span>
             <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Stage</span>

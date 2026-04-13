@@ -67,6 +67,18 @@ function formatActivity(action: string | null | undefined, context: Record<strin
   }
 }
 
+function relativeCallDate(dateStr: string | null | undefined): { label: string; overdue: boolean; today: boolean } | null {
+  if (!dateStr) return null;
+  const now = new Date(); now.setHours(0, 0, 0, 0);
+  const d = new Date(dateStr); d.setHours(0, 0, 0, 0);
+  const diff = Math.round((d.getTime() - now.getTime()) / 86400000);
+  if (diff === 0) return { label: "Today", overdue: false, today: true };
+  if (diff === 1) return { label: "Tomorrow", overdue: false, today: false };
+  if (diff === -1) return { label: "Yesterday", overdue: true, today: false };
+  if (diff < 0) return { label: `${-diff}d overdue`, overdue: true, today: false };
+  return { label: formatDate(dateStr), overdue: false, today: false };
+}
+
 function timeAgo(dateStr: string): string {
   const ms = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(ms / 60000);
@@ -318,21 +330,108 @@ export function ProspectDrawer({ engagement, onClose, onAction, isMutating }: Pr
               </DropdownMenu>
             </div>
 
+            {/* ── Call Status Strip ── */}
+            {(() => {
+              const nextCallRel = relativeCallDate(engagement.nextCallDate);
+              const lastCallRel = relativeCallDate(engagement.lastCallDate);
+              const callCount = engagement.callAttemptCount ?? 0;
+              return (
+                <div className={cn(
+                  "flex items-stretch gap-0 border-b flex-shrink-0 divide-x divide-border",
+                  nextCallRel?.overdue ? "bg-red-50" : nextCallRel?.today ? "bg-emerald-50/60" : "bg-slate-50/60"
+                )}>
+                  {/* Next call */}
+                  <div className="flex-1 px-4 py-3 min-w-0">
+                    <p className="text-[10px] uppercase font-semibold tracking-wide text-muted-foreground flex items-center gap-1">
+                      <Phone size={9} /> Next Call
+                    </p>
+                    {nextCallRel ? (
+                      <p className={cn(
+                        "text-sm font-bold mt-0.5 truncate",
+                        nextCallRel.overdue ? "text-red-700" : nextCallRel.today ? "text-emerald-700" : "text-foreground"
+                      )}>
+                        {nextCallRel.overdue && <AlertTriangle size={12} className="inline mr-0.5" />}
+                        {nextCallRel.label}
+                      </p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground mt-0.5">Not scheduled</p>
+                    )}
+                  </div>
+                  {/* Call count */}
+                  <div className="px-4 py-3 text-center">
+                    <p className="text-[10px] uppercase font-semibold tracking-wide text-muted-foreground">Calls</p>
+                    <div className="flex items-center justify-center gap-1 mt-1">
+                      <span className={cn(
+                        "text-lg font-bold tabular-nums leading-none",
+                        callCount >= 5 ? "text-red-600" : callCount > 0 ? "text-violet-700" : "text-muted-foreground"
+                      )}>
+                        {callCount}
+                      </span>
+                    </div>
+                    {/* Call pips — up to 6 */}
+                    {callCount > 0 && (
+                      <div className="flex items-center justify-center gap-0.5 mt-1">
+                        {Array.from({ length: Math.min(callCount, 6) }).map((_, i) => (
+                          <span key={i} className={cn(
+                            "inline-block w-1.5 h-1.5 rounded-full",
+                            i < callCount ? (callCount >= 5 ? "bg-red-400" : "bg-violet-400") : "bg-muted"
+                          )} />
+                        ))}
+                        {callCount > 6 && <span className="text-[9px] text-muted-foreground">+{callCount - 6}</span>}
+                      </div>
+                    )}
+                  </div>
+                  {/* Last called */}
+                  <div className="px-4 py-3 text-center">
+                    <p className="text-[10px] uppercase font-semibold tracking-wide text-muted-foreground">Last called</p>
+                    <p className="text-sm font-medium text-foreground mt-0.5 whitespace-nowrap">
+                      {lastCallRel ? lastCallRel.label : "—"}
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* ── Scrollable body ── */}
             <div className="flex-1 overflow-y-auto">
-              {/* Info grid */}
+
+              {/* Follow-up alert — top priority when active */}
+              {engagement.followUpRequired && (
+                <div className="px-4 py-3 border-b bg-amber-50 border-amber-100">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <AlertTriangle size={12} className="text-amber-600 flex-shrink-0" />
+                    <p className="text-[10px] uppercase font-semibold text-amber-700 tracking-wide">Follow-up Required</p>
+                  </div>
+                  <p className="text-sm text-amber-900 leading-snug">
+                    {engagement.followUpReason ?? "Follow-up action needed before next call."}
+                  </p>
+                </div>
+              )}
+
+              {/* Latest note */}
+              {engagement.latestNote && (
+                <div className="px-4 py-3 border-b bg-blue-50/30">
+                  <p className="text-[10px] uppercase font-semibold text-blue-700 tracking-wide mb-1 flex items-center gap-1">
+                    <Clock size={10} /> Last call note
+                  </p>
+                  <p className="text-sm text-foreground leading-relaxed">{engagement.latestNote}</p>
+                </div>
+              )}
+
+              {/* Info grid — call data first */}
               <div className="px-4 py-4 grid grid-cols-2 gap-x-6 gap-y-4 border-b">
-                <InfoRow label="Lead source" value={leadSourceLabel ?? "—"} />
                 <InfoRow
-                  label="Calls made"
-                  value={
-                    <span className="flex items-center gap-1">
-                      <Phone size={12} className="text-muted-foreground" />
-                      {engagement.callAttemptCount ?? 0} attempts
+                  label="Last call outcome"
+                  value={engagement.lastCallOutcome ? (
+                    <span className={cn(
+                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border",
+                      getCallOutcomeBadgeClass(engagement.lastCallOutcome)
+                    )}>
+                      <CallOutcomeIcon outcome={engagement.lastCallOutcome} />
+                      {getCallOutcomeLabel(engagement.lastCallOutcome)}
                     </span>
-                  }
+                  ) : "—"}
                 />
-                <InfoRow label="Last call" value={engagement.lastCallDate ? formatDate(engagement.lastCallDate) : "—"} />
                 <InfoRow
                   label="Total touches"
                   value={
@@ -342,13 +441,6 @@ export function ProspectDrawer({ engagement, onClose, onAction, isMutating }: Pr
                     </span>
                   }
                 />
-                {engagement.nextCallDate && (
-                  <InfoRow
-                    label="Next call"
-                    value={formatDate(engagement.nextCallDate)}
-                    highlight={isOverdue(engagement.nextCallDate)}
-                  />
-                )}
                 {engagement.nextActionDate && (
                   <InfoRow
                     label="Next action"
@@ -356,29 +448,14 @@ export function ProspectDrawer({ engagement, onClose, onAction, isMutating }: Pr
                     highlight={isOverdue(engagement.nextActionDate)}
                   />
                 )}
-                {engagement.followUpReason && (
-                  <div className="col-span-2">
-                    <p className="text-[10px] uppercase font-semibold text-amber-600 tracking-wide">Follow-up context</p>
-                    <p className="text-sm text-foreground mt-0.5 leading-snug">{engagement.followUpReason}</p>
-                  </div>
-                )}
                 {engagement.meetingDate && (
                   <InfoRow label="Meeting date" value={formatDate(engagement.meetingDate)} />
                 )}
+                <InfoRow label="Lead source" value={leadSourceLabel ?? "—"} />
                 {engagement.handoverStatus && (
                   <InfoRow label="Handover" value={<span className="capitalize">{engagement.handoverStatus.replace("_", " ")}</span>} />
                 )}
               </div>
-
-              {/* Latest note */}
-              {engagement.latestNote && (
-                <div className="px-4 py-3 border-b bg-amber-50/30">
-                  <p className="text-[10px] uppercase font-semibold text-amber-700 tracking-wide mb-1 flex items-center gap-1">
-                    <Clock size={10} /> Latest note
-                  </p>
-                  <p className="text-sm text-foreground leading-relaxed">{engagement.latestNote}</p>
-                </div>
-              )}
 
               {/* Notes */}
               {engagement.notes && (
@@ -398,7 +475,7 @@ export function ProspectDrawer({ engagement, onClose, onAction, isMutating }: Pr
 
               {/* Activity timeline */}
               <div className="px-4 py-4">
-                <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wide mb-3">Activity</p>
+                <p className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wide mb-3">Call & Activity Log</p>
                 {activitiesLoading ? (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <RefreshCw size={12} className="animate-spin" /> Loading…
@@ -409,7 +486,10 @@ export function ProspectDrawer({ engagement, onClose, onAction, isMutating }: Pr
                   <ol className="space-y-3">
                     {activities.map((entry) => (
                       <li key={entry.id} className="flex items-start gap-2.5">
-                        <div className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full bg-muted flex items-center justify-center">
+                        <div className={cn(
+                          "mt-0.5 flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center",
+                          entry.action === "call_logged" ? "bg-violet-100" : "bg-muted"
+                        )}>
                           <ActivityIcon action={entry.action} />
                         </div>
                         <div className="flex-1 min-w-0">
