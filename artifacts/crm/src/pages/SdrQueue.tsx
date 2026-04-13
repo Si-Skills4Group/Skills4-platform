@@ -611,7 +611,14 @@ export default function SdrQueue() {
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["/api/engagements"] });
 
   const updateMutation = useUpdateEngagement({ mutation: { onSuccess: invalidate } });
-  const createTaskMutation = useCreateTask({ mutation: { onSuccess: () => setActiveModal(null) } });
+  const createTaskMutation = useCreateTask({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+        setActiveModal(null);
+      },
+    },
+  });
   const handoverMutation = useHandoverEngagement({ mutation: { onSuccess: () => { invalidate(); setActiveModal(null); } } });
   const logCallMutation = useLogCall({ mutation: { onSuccess: () => { invalidate(); setActiveModal(null); } } });
 
