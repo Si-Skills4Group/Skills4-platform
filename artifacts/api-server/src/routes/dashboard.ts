@@ -1,7 +1,8 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { organisationsTable, contactsTable, engagementsTable, tasksTable } from "@workspace/db/schema";
+import { organisationsTable, contactsTable, engagementsTable, tasksTable, usersTable } from "@workspace/db/schema";
 import { eq, sql, and, or, ne, gt, lt, isNotNull, inArray } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 
 const router: IRouter = Router();
 
@@ -271,6 +272,148 @@ router.get("/sdr", async (req, res) => {
       conversionFunnel,
       myTasks: myTaskRows.map(mapTask),
       recentProspects: recentProspectRows.map(mapEngagement),
+    });
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// ─── SDR Manager Report ───────────────────────────────────────────────────────
+
+const TERMINAL_STAGES = ["nurture", "unresponsive", "do_not_contact", "bad_data", "changed_job", "disqualified"];
+
+const TERMINAL_LABELS: Record<string, string> = {
+  nurture:          "Nurture",
+  unresponsive:     "Unresponsive",
+  do_not_contact:   "Do Not Contact",
+  bad_data:         "Bad Data",
+  changed_job:      "Changed Job",
+  disqualified:     "Disqualified",
+};
+
+router.get("/sdr/manager", async (req, res) => {
+  try {
+    const now = new Date();
+    const today = now.toISOString().split("T")[0];
+    const sdrOwnerTable = alias(usersTable, "sdr_owner");
+
+    const sdrOnly = eq(engagementsTable.engagementType, "sdr");
+
+    // ── 1. Rep performance ──────────────────────────────────────────────────
+    const repPerfRows = await db
+      .select({
+        repId:           sdrOwnerTable.id,
+        repName:         sdrOwnerTable.fullName,
+        total:           sql<number>`count(${engagementsTable.id})::int`,
+        callsMade:       sql<number>`coalesce(sum(${engagementsTable.callAttemptCount}), 0)::int`,
+        contactMade:     sql<number>`count(case when ${engagementsTable.contactMade} = true then 1 end)::int`,
+        meetingsBooked:  sql<number>`count(case when ${engagementsTable.meetingBooked} = true then 1 end)::int`,
+        qualified:       sql<number>`count(case when ${engagementsTable.sdrStage} = 'qualified' then 1 end)::int`,
+        overdueFollowUps:sql<number>`count(case when ${engagementsTable.followUpRequired} = true and ${engagementsTable.nextCallDate} < ${today} then 1 end)::int`,
+      })
+      .from(sdrOwnerTable)
+      .innerJoin(
+        engagementsTable,
+        and(eq(engagementsTable.sdrOwnerUserId, sdrOwnerTable.id), sdrOnly),
+      )
+      .groupBy(sdrOwnerTable.id, sdrOwnerTable.fullName)
+      .orderBy(sql`count(${engagementsTable.id}) desc`);
+
+    // ── 2. Meetings by week (last 8 weeks) ──────────────────────────────────
+    const eightWeeksAgo = new Date(now);
+    eightWeeksAgo.setDate(now.getDate() - 56);
+    const eightWeeksAgoStr = eightWeeksAgo.toISOString().split("T")[0];
+
+    const meetingsWeekRows = await db
+      .select({
+        weekStart: sql<string>`date_trunc('week', to_date(${engagementsTable.meetingDate}, 'YYYY-MM-DD'))::text`,
+        count:     sql<number>`count(*)::int`,
+      })
+      .from(engagementsTable)
+      .where(and(
+        sdrOnly,
+        eq(engagementsTable.meetingBooked, true),
+        isNotNull(engagementsTable.meetingDate),
+        sql`to_date(${engagementsTable.meetingDate}, 'YYYY-MM-DD') >= to_date(${eightWeeksAgoStr}, 'YYYY-MM-DD')`,
+      ))
+      .groupBy(sql`date_trunc('week', to_date(${engagementsTable.meetingDate}, 'YYYY-MM-DD'))`)
+      .orderBy(sql`date_trunc('week', to_date(${engagementsTable.meetingDate}, 'YYYY-MM-DD')) asc`);
+
+    // ── 3. Terminal / disqualification stage breakdown ──────────────────────
+    const terminalRows = await db
+      .select({ stage: engagementsTable.sdrStage, count: sql<number>`count(*)::int` })
+      .from(engagementsTable)
+      .where(and(sdrOnly, inArray(engagementsTable.sdrStage, TERMINAL_STAGES)))
+      .groupBy(engagementsTable.sdrStage);
+
+    // ── 4. Overdue follow-ups (detail list) ────────────────────────────────
+    const overdueRows = await db
+      .select({
+        id:              engagementsTable.id,
+        title:           engagementsTable.title,
+        orgName:         organisationsTable.name,
+        repName:         sdrOwnerTable.fullName,
+        nextCallDate:    engagementsTable.nextCallDate,
+        lastCallOutcome: engagementsTable.lastCallOutcome,
+        followUpReason:  engagementsTable.followUpReason,
+        sdrStage:        engagementsTable.sdrStage,
+      })
+      .from(engagementsTable)
+      .leftJoin(organisationsTable, eq(engagementsTable.organisationId, organisationsTable.id))
+      .leftJoin(sdrOwnerTable, eq(engagementsTable.sdrOwnerUserId, sdrOwnerTable.id))
+      .where(and(
+        sdrOnly,
+        eq(engagementsTable.followUpRequired, true),
+        isNotNull(engagementsTable.nextCallDate),
+        sql`${engagementsTable.nextCallDate} < ${today}`,
+      ))
+      .orderBy(engagementsTable.nextCallDate)
+      .limit(20);
+
+    // ── 5. Build weeks scaffold (fill gaps with 0) ─────────────────────────
+    const weekMap: Record<string, number> = {};
+    for (const r of meetingsWeekRows) {
+      if (r.weekStart) weekMap[r.weekStart.slice(0, 10)] = r.count;
+    }
+    const meetingsByWeek: { week: string; count: number }[] = [];
+    for (let i = 7; i >= 0; i--) {
+      const d = new Date(now);
+      const dayOfWeek = d.getDay();
+      const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+      d.setDate(d.getDate() + daysToMonday - i * 7);
+      const key = d.toISOString().split("T")[0];
+      const label = d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+      meetingsByWeek.push({ week: label, count: weekMap[key] ?? 0 });
+    }
+
+    res.json({
+      repPerformance: repPerfRows.map((r) => ({
+        repId:            r.repId,
+        repName:          r.repName ?? "Unassigned",
+        total:            r.total,
+        callsMade:        r.callsMade,
+        contactMade:      r.contactMade,
+        meetingsBooked:   r.meetingsBooked,
+        qualified:        r.qualified,
+        overdueFollowUps: r.overdueFollowUps,
+      })),
+      meetingsByWeek,
+      terminalStageDistribution: terminalRows.map((r) => ({
+        stage: r.stage ?? "unknown",
+        label: r.stage ? (TERMINAL_LABELS[r.stage] ?? r.stage) : "Unknown",
+        count: r.count,
+      })),
+      overdueFollowUps: overdueRows.map((r) => ({
+        id:              r.id,
+        title:           r.title,
+        orgName:         r.orgName ?? null,
+        repName:         r.repName ?? null,
+        nextCallDate:    r.nextCallDate ?? null,
+        lastCallOutcome: r.lastCallOutcome ?? null,
+        followUpReason:  r.followUpReason ?? null,
+        sdrStage:        r.sdrStage ?? null,
+      })),
     });
   } catch (err) {
     req.log.error(err);

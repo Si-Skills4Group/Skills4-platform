@@ -670,6 +670,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/SdrDashboardSummary"
 
+  /dashboard/sdr/manager:
+    get:
+      operationId: getSdrManagerReport
+      tags: [dashboard]
+      summary: Get SDR manager report (per-rep performance, meetings by week, disqualification reasons, overdue list)
+      responses:
+        "200":
+          description: SDR manager report data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SdrManagerReport"
+
   /dashboard/summary:
     get:
       operationId: getDashboardSummary
@@ -1628,6 +1641,56 @@ components:
           items:
             $ref: "#/components/schemas/Engagement"
       required: [newProspects, dueFollowUpsToday, overdueFollowUps, meetingsBookedThisWeek, qualifiedLeads, disqualifiedLeads, prospectsByStage, conversionFunnel, myTasks, recentProspects]
+
+    SdrManagerReport:
+      type: object
+      properties:
+        repPerformance:
+          type: array
+          items:
+            type: object
+            properties:
+              repId:            { type: integer }
+              repName:          { type: string }
+              total:            { type: integer }
+              callsMade:        { type: integer }
+              contactMade:      { type: integer }
+              meetingsBooked:   { type: integer }
+              qualified:        { type: integer }
+              overdueFollowUps: { type: integer }
+            required: [repId, repName, total, callsMade, contactMade, meetingsBooked, qualified, overdueFollowUps]
+        meetingsByWeek:
+          type: array
+          items:
+            type: object
+            properties:
+              week:  { type: string }
+              count: { type: integer }
+            required: [week, count]
+        terminalStageDistribution:
+          type: array
+          items:
+            type: object
+            properties:
+              stage: { type: string }
+              label: { type: string }
+              count: { type: integer }
+            required: [stage, label, count]
+        overdueFollowUps:
+          type: array
+          items:
+            type: object
+            properties:
+              id:              { type: integer }
+              title:           { type: string }
+              orgName:         { type: string, nullable: true }
+              repName:         { type: string, nullable: true }
+              nextCallDate:    { type: string, nullable: true }
+              lastCallOutcome: { type: string, nullable: true }
+              followUpReason:  { type: string, nullable: true }
+              sdrStage:        { type: string, nullable: true }
+            required: [id, title]
+      required: [repPerformance, meetingsByWeek, terminalStageDistribution, overdueFollowUps]
 
     # --- Activity Log ---
     ActivityEventType:

@@ -38,6 +38,7 @@ import type {
   LoginResponse,
   Organisation,
   SdrDashboardSummary,
+  SdrManagerReport,
   Task,
   UpdateContactRequest,
   UpdateEngagementRequest,
@@ -2591,6 +2592,81 @@ export function useGetSdrDashboard<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetSdrDashboardQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get SDR manager report (per-rep performance, meetings by week, disqualification reasons, overdue list)
+ */
+export const getGetSdrManagerReportUrl = () => {
+  return `/api/dashboard/sdr/manager`;
+};
+
+export const getSdrManagerReport = async (
+  options?: RequestInit,
+): Promise<SdrManagerReport> => {
+  return customFetch<SdrManagerReport>(getGetSdrManagerReportUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetSdrManagerReportQueryKey = () => {
+  return [`/api/dashboard/sdr/manager`] as const;
+};
+
+export const getGetSdrManagerReportQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSdrManagerReport>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getSdrManagerReport>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetSdrManagerReportQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getSdrManagerReport>>
+  > = ({ signal }) => getSdrManagerReport({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSdrManagerReport>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetSdrManagerReportQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSdrManagerReport>>
+>;
+export type GetSdrManagerReportQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get SDR manager report (per-rep performance, meetings by week, disqualification reasons, overdue list)
+ */
+
+export function useGetSdrManagerReport<
+  TData = Awaited<ReturnType<typeof getSdrManagerReport>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getSdrManagerReport>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetSdrManagerReportQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

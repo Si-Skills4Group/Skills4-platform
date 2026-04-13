@@ -11,6 +11,7 @@ import {
   Shield,
   Target,
   BarChart2,
+  ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -23,6 +24,7 @@ const navigation = [
   { name: "Tasks", href: "/tasks", icon: CheckSquare },
   { name: "SDR Dashboard", href: "/sdr-dashboard", icon: BarChart2 },
   { name: "SDR Queue", href: "/sdr", icon: Target },
+  { name: "SDR Report", href: "/sdr-report", icon: ClipboardList },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 

@@ -521,6 +521,46 @@ export interface SdrDashboardSummary {
   recentProspects: Engagement[];
 }
 
+export type SdrManagerReportRepPerformanceItem = {
+  repId: number;
+  repName: string;
+  total: number;
+  callsMade: number;
+  contactMade: number;
+  meetingsBooked: number;
+  qualified: number;
+  overdueFollowUps: number;
+};
+
+export type SdrManagerReportMeetingsByWeekItem = {
+  week: string;
+  count: number;
+};
+
+export type SdrManagerReportTerminalStageDistributionItem = {
+  stage: string;
+  label: string;
+  count: number;
+};
+
+export type SdrManagerReportOverdueFollowUpsItem = {
+  id: number;
+  title: string;
+  orgName?: string | null;
+  repName?: string | null;
+  nextCallDate?: string | null;
+  lastCallOutcome?: string | null;
+  followUpReason?: string | null;
+  sdrStage?: string | null;
+};
+
+export interface SdrManagerReport {
+  repPerformance: SdrManagerReportRepPerformanceItem[];
+  meetingsByWeek: SdrManagerReportMeetingsByWeekItem[];
+  terminalStageDistribution: SdrManagerReportTerminalStageDistributionItem[];
+  overdueFollowUps: SdrManagerReportOverdueFollowUpsItem[];
+}
+
 export type ActivityEventType =
   (typeof ActivityEventType)[keyof typeof ActivityEventType];
 

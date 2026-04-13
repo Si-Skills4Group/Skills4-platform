@@ -1527,6 +1527,49 @@ export const GetSdrDashboardResponse = zod.object({
 });
 
 /**
+ * @summary Get SDR manager report (per-rep performance, meetings by week, disqualification reasons, overdue list)
+ */
+export const GetSdrManagerReportResponse = zod.object({
+  repPerformance: zod.array(
+    zod.object({
+      repId: zod.number(),
+      repName: zod.string(),
+      total: zod.number(),
+      callsMade: zod.number(),
+      contactMade: zod.number(),
+      meetingsBooked: zod.number(),
+      qualified: zod.number(),
+      overdueFollowUps: zod.number(),
+    }),
+  ),
+  meetingsByWeek: zod.array(
+    zod.object({
+      week: zod.string(),
+      count: zod.number(),
+    }),
+  ),
+  terminalStageDistribution: zod.array(
+    zod.object({
+      stage: zod.string(),
+      label: zod.string(),
+      count: zod.number(),
+    }),
+  ),
+  overdueFollowUps: zod.array(
+    zod.object({
+      id: zod.number(),
+      title: zod.string(),
+      orgName: zod.string().nullish(),
+      repName: zod.string().nullish(),
+      nextCallDate: zod.string().nullish(),
+      lastCallOutcome: zod.string().nullish(),
+      followUpReason: zod.string().nullish(),
+      sdrStage: zod.string().nullish(),
+    }),
+  ),
+});
+
+/**
  * @summary Get dashboard summary stats
  */
 export const GetDashboardSummaryResponse = zod.object({
