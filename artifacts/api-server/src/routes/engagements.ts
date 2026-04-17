@@ -197,6 +197,7 @@ router.put("/:id", requireMinRole("engagement_user"), async (req, res) => {
         ownerUserId: engagementsTable.ownerUserId,
         organisationId: engagementsTable.organisationId,
         title: engagementsTable.title,
+        qualificationStatus: engagementsTable.qualificationStatus,
       })
       .from(engagementsTable)
       .where(eq(engagementsTable.id, engId));
@@ -273,6 +274,32 @@ router.put("/:id", requireMinRole("engagement_user"), async (req, res) => {
           stageFrom: before.stage, stageTo: body.stage, title: eng.title, engagementId: eng.id,
         });
       }
+    }
+
+    // Audit: SDR stage transitions tracked separately from `stage`. Skip when a
+    // more specific event below covers the transition (avoids duplicate entries).
+    const sdrTransitioningToDisqualified =
+      isSdr && body.sdrStage === "disqualified" && before.sdrStage !== "disqualified";
+    if (body.sdrStage && before.sdrStage !== body.sdrStage && !sdrTransitioningToDisqualified) {
+      void logActivity("stage_changed", "engagement", eng.id, req.user?.id, {
+        sdrStageFrom: before.sdrStage, sdrStageTo: body.sdrStage, title: eng.title,
+      });
+    }
+
+    // Audit: qualification_changed
+    if (body.qualificationStatus && before.qualificationStatus !== body.qualificationStatus) {
+      void logActivity("qualification_changed", "engagement", eng.id, req.user?.id, {
+        from: before.qualificationStatus, to: body.qualificationStatus, title: eng.title,
+      });
+    }
+
+    // Audit: disqualified — emitted instead of stage_changed for this transition.
+    if (sdrTransitioningToDisqualified) {
+      void logActivity("disqualified", "engagement", eng.id, req.user?.id, {
+        title: eng.title,
+        reason: body.disqualificationReason,
+        previousStage: before.sdrStage,
+      });
     }
 
     // ── Automation 3: meeting_booked → create prep task ───────────────────────
@@ -404,6 +431,23 @@ router.post("/:id/handover", requireMinRole("engagement_user"), async (req, res)
       handoverNotes: handoverNotes ?? sdr.handoverNotes,
       updatedAt: new Date(),
     }).where(eq(engagementsTable.id, sdrId)).returning();
+
+    // Audit: handover_completed (the route performs the handover atomically).
+    void logActivity("handover_completed", "engagement", sdrId, req.user?.id, {
+      title: sdr.title,
+      orgName,
+      handoverOwnerUserId,
+      newEngagementId: newEngagement?.id ?? null,
+      reusedEngagementId: existingEngagementId,
+    });
+    if (sdr.organisationId) {
+      void logActivity("handover_completed", "organisation", sdr.organisationId, req.user?.id, {
+        sdrEngagementId: sdrId,
+        newEngagementId: newEngagement?.id ?? null,
+        reusedEngagementId: existingEngagementId,
+        handoverOwnerUserId,
+      });
+    }
 
     // 5. Create follow-up task if requested
     let task: typeof tasksTable.$inferSelect | null = null;

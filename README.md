@@ -152,11 +152,141 @@ pnpm --filter @workspace/api-spec run codegen
 
 ### Environment variables
 
-| Variable | Description | D365 equivalent |
+All env vars are read, validated, and frozen on first import via
+`artifacts/api-server/src/lib/config.ts`. Other modules MUST import from this
+file rather than reading `process.env` directly.
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `NODE_ENV` | no | `development` | `development` or `production`. In production, `JWT_SECRET` is required and the dev fallback is rejected. |
+| `PORT` | yes | — | API server port. |
+| `DATABASE_URL` | yes | — | PostgreSQL connection string. |
+| `JWT_SECRET` | yes (in production) | dev fallback (development only) | Strong random string for JWT signing. Store in Azure Key Vault. |
+| `JWT_EXPIRES_IN` | no | `7d` | JWT lifetime (any [vercel/ms](https://github.com/vercel/ms) string). |
+| `LOG_LEVEL` | no | `info` | Pino log level: `trace` / `debug` / `info` / `warn` / `error` / `fatal`. |
+| `CORS_ORIGIN` | no | `*` | Comma-separated allowed origins, or `*`. Tighten to your frontend origin in production. |
+
+---
+
+## Local setup outside Replit
+
+**Prerequisites:** Node.js 20+, pnpm 9+, PostgreSQL 14+ (local or Azure Database for PostgreSQL Flexible Server).
+
+```bash
+# 1. Clone and install
+git clone <repo-url> skills4crm && cd skills4crm
+pnpm install
+
+# 2. Configure environment
+export DATABASE_URL=postgres://user:pass@localhost:5432/skills4crm
+export JWT_SECRET=$(openssl rand -hex 32)
+export PORT=8080
+
+# 3. Apply schema (development) OR run versioned migrations (production)
+pnpm --filter @workspace/db run push        # dev: drizzle-kit push (idempotent)
+# or
+pnpm --filter @workspace/db run migrate     # prod: applies lib/db/migrations/*.sql
+
+# 4. Seed demo data (optional, local-dev only)
+pnpm --filter @workspace/scripts run seed
+
+# 5. Build and start the API
+pnpm --filter @workspace/api-server run build
+pnpm --filter @workspace/api-server run start
+
+# 6. (separate terminal) Start the CRM frontend
+pnpm --filter @workspace/crm run dev
+```
+
+The healthcheck endpoint is `GET /api/healthz` — use it for App Service / load
+balancer probes.
+
+---
+
+## Database migrations workflow
+
+Drizzle generates versioned SQL migration files under `lib/db/migrations/`.
+A baseline (`0000_*.sql`) representing the full current schema is committed.
+
+```bash
+# After editing lib/db/src/schema/*.ts
+pnpm --filter @workspace/db run generate    # creates lib/db/migrations/NNNN_*.sql
+git add lib/db/migrations
+git commit -m "chore(db): migration for <change>"
+
+# Apply pending migrations (production / CI)
+pnpm --filter @workspace/db run migrate
+```
+
+Local dev can still use `pnpm --filter @workspace/db run push` for fast schema
+syncs. **Never run `push` against production** — always use the `migrate`
+script so the change history is auditable.
+
+> **Where to run migrations in Azure:** run `pnpm --filter @workspace/db run migrate`
+> from your **CI/CD pipeline** (Azure DevOps, GitHub Actions) against the
+> production `DATABASE_URL` *before* the new API image is rolled out. The
+> runtime container (`Dockerfile`) is intentionally minimal — it bundles the
+> built API only, not the migrations folder or drizzle-kit. This keeps the
+> production image small and makes the schema change history a deploy-time
+> concern, not a runtime concern.
+
+---
+
+## Docker
+
+A multi-stage `Dockerfile` at the repo root builds the API server:
+
+```bash
+docker build -t skills4crm-api .
+docker run -p 8080:8080 \
+  -e PORT=8080 \
+  -e NODE_ENV=production \
+  -e DATABASE_URL=postgres://... \
+  -e JWT_SECRET=$(openssl rand -hex 32) \
+  -e CORS_ORIGIN=https://crm.example.com \
+  skills4crm-api
+```
+
+The image includes a built-in `HEALTHCHECK` that hits `/api/healthz`, which is
+picked up automatically by Docker, App Service for Containers, and Kubernetes
+liveness/readiness probes.
+
+---
+
+## Azure deployment readiness
+
+The codebase is structured so every Azure-managed service has a clear seam.
+
+| Concern | Local / Replit | Azure target |
 |---|---|---|
-| `DATABASE_URL` | PostgreSQL connection string | Dataverse environment URL |
-| `JWT_SECRET` | Secret for JWT signing | Replaced by Entra ID token in D365 |
-| `PORT` | API server port | Not applicable |
+| API hosting | `pnpm --filter @workspace/api-server run dev` | **Azure App Service** (Linux, Node 24) or **App Service for Containers** with the bundled `Dockerfile` |
+| Frontend hosting | `pnpm --filter @workspace/crm run dev` (Vite) | **Azure Static Web Apps** (build with `pnpm --filter @workspace/crm run build`, publish `artifacts/crm/dist`) |
+| Database | Replit Postgres | **Azure Database for PostgreSQL — Flexible Server** (recommended; preserves `jsonb`, `serial`, indexes). Set `DATABASE_URL` to the connection string with `sslmode=require` |
+| Authentication | Local JWT (`lib/auth.ts`) | **Microsoft Entra ID** via `passport-azure-ad` `BearerStrategy` — swap the body of `signToken` / `verifyToken` only; the middleware contract is unchanged |
+| Secrets | env vars / Replit Secrets | **Azure Key Vault**, surfaced as App Service settings via `@Microsoft.KeyVault(SecretUri=…)` references |
+| Monitoring | pino + stdout | **Application Insights** — install `applicationinsights` SDK in `index.ts` (`appInsights.setup(...).start()`); pino logs flow through stdout into App Service log streams |
+| Audit / activity | `activity_log` table + `logActivity` helper | Same table on Azure SQL/Postgres, or replace with native Dataverse Timeline / ActivityPointer when migrating to D365 |
+| Healthcheck | `GET /api/healthz` | App Service health-check path; same endpoint for K8s probes |
+| RBAC | `requireRole` / `requireMinRole` middleware | Same middleware; map Entra ID app roles → `admin` / `crm_manager` / `engagement_user` / `read_only` in the bearer-token callback |
+
+### Azure SQL note
+
+The schema currently uses Postgres-native features: `serial` (auto-increment),
+`jsonb` (activity-log metadata), and partial-index syntax. **Recommended path:**
+deploy on **Azure Database for PostgreSQL Flexible Server** — this preserves
+the schema verbatim and is fully managed by Azure with private endpoints,
+geo-redundancy, and Entra ID integration.
+
+If Azure SQL is mandated, plan the following changes before migrating:
+- `serial` → `INT IDENTITY(1,1)`
+- `jsonb` → `NVARCHAR(MAX)` with `ISJSON` constraint
+- `text` → `NVARCHAR(MAX)`
+- Re-evaluate index strategy (Azure SQL does not have GIN/JSONB indexes)
+- Switch the Drizzle dialect from `postgresql` → `mssql` (community driver)
+
+### Audit log
+
+The `activity_log` table records (event_type, entity_type, entity_id, actor_user_id, metadata, created_at) for the following events: `org_created`, `contact_added`, `engagement_created`, `stage_changed`, `task_created`, `task_completed`, `call_logged`, `qualification_changed`, `handover_initiated`, `handover_completed`, `disqualified`. All writes go through `lib/logActivity.ts`; failures are swallowed and logged to stderr so audit issues never break the user-facing request.
 
 ---
 

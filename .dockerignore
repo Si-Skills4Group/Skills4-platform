@@ -1,0 +1,13 @@
+**/node_modules
+**/dist
+**/.replit-artifact
+.git
+.gitignore
+.local
+.cache
+.upm
+attached_assets
+**/*.log
+**/.DS_Store
+artifacts/crm
+artifacts/mockup-sandbox

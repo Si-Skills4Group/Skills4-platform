@@ -24,7 +24,13 @@ export type EventType =
   | "contact_added"
   | "engagement_created"
   | "stage_changed"
-  | "task_completed";
+  | "task_created"
+  | "task_completed"
+  | "call_logged"
+  | "qualification_changed"
+  | "handover_initiated"
+  | "handover_completed"
+  | "disqualified";
 
 export async function logActivity(
   eventType: EventType,
