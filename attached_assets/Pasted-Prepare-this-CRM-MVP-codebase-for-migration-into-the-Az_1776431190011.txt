@@ -1,0 +1,52 @@
+Prepare this CRM MVP codebase for migration into the Azure ecosystem.
+
+Do not add new business features.
+Focus on cloud readiness, maintainability, portability, and deployment preparation.
+
+Make the following improvements:
+
+1. Separate configuration from code
+- move all secrets, URLs, and environment-specific values into environment variables
+- create a clean config layer
+
+2. Refactor architecture
+- ensure clear separation between frontend, backend API, business logic, and data access
+- avoid direct database logic in UI components
+
+3. Harden database setup
+- add or clean up migrations
+- ensure schema is stable and relationally correct
+- add indexes and audit fields where appropriate
+- keep the schema compatible with Azure SQL
+
+4. Prepare authentication abstraction
+- keep current auth working
+- refactor auth so Microsoft Entra ID can be integrated later without major redesign
+
+5. Improve role-based access control
+- centralise permissions for Admin, Manager, SDR, Employer Engagement, and Read Only roles
+- enforce permissions in backend routes, not only in the UI
+
+6. Add audit and activity logging
+- log major events such as stage changes, qualification, handover, task creation, and task completion
+
+7. Add cloud-readiness improvements
+- create a Dockerfile
+- add a health check endpoint
+- ensure npm install, build, and start work cleanly outside Replit
+- add clear startup instructions
+
+8. Add documentation
+- update README with architecture overview, environment variables, setup instructions, migration notes, and Azure deployment readiness
+- document key API endpoints and core business rules
+
+9. Keep this MVP compatible with a future Azure deployment pattern:
+- frontend/app hosting in Azure
+- backend API hosting in Azure
+- Azure SQL as the database
+- Microsoft Entra ID for identity
+- Key Vault for secrets
+- Application Insights for monitoring
+
+Do not over-engineer.
+Keep the code modular, clean, and practical for handoff into Azure.
