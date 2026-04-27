@@ -10,7 +10,7 @@
  * no other component needs to change.
  */
 import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
-import { setAuthTokenGetter } from "@workspace/api-client-react";
+import { setAuthTokenGetter, setBaseUrl } from "@workspace/api-client-react";
 
 const TOKEN_KEY = "crm_auth_token";
 const USER_KEY = "crm_auth_user";
@@ -43,6 +43,12 @@ const ROLE_LEVEL: Record<UserRole, number> = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function getApiBaseUrl(): string {
+  const configured = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "");
+  if (configured) return configured;
+  return import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -58,12 +64,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem(TOKEN_KEY);
       }
     }
+    setBaseUrl(getApiBaseUrl());
     setAuthTokenGetter(() => localStorage.getItem(TOKEN_KEY));
     setIsLoading(false);
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const baseUrl = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+    const baseUrl = getApiBaseUrl();
     const res = await fetch(`${baseUrl}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

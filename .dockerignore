@@ -9,5 +9,4 @@
 attached_assets
 **/*.log
 **/.DS_Store
-artifacts/crm
 artifacts/mockup-sandbox
