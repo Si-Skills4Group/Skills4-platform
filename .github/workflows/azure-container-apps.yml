@@ -66,12 +66,12 @@ jobs:
             console.log("AZURE_CREDENTIALS can be normalized to a service principal login shape.");
           '
 
-      - name: Log in to Azure
+      - name: Normalize Azure credentials
         env:
           AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
         run: |
           node -e '
-            const { execFileSync } = require("child_process");
+            const fs = require("fs");
             const parsed = JSON.parse(process.env.AZURE_CREDENTIALS);
             const normalized = {
               clientId: parsed.clientId ?? parsed.appId,
@@ -79,25 +79,27 @@ jobs:
               tenantId: parsed.tenantId ?? parsed.tenant,
               subscriptionId: parsed.subscriptionId ?? process.env.AZURE_SUBSCRIPTION_ID,
             };
-            execFileSync("az", [
-              "login",
-              "--service-principal",
-              "--username", normalized.clientId,
-              "--password", normalized.clientSecret,
-              "--tenant", normalized.tenantId,
-            ], { stdio: "inherit" });
-            execFileSync("az", [
-              "account",
-              "set",
-              "--subscription", normalized.subscriptionId,
-            ], { stdio: "inherit" });
-            execFileSync("az", [
-              "account",
-              "show",
-              "--query", "{subscription:id, tenant:tenantId}",
-              "--output", "table",
-            ], { stdio: "inherit" });
+            for (const value of Object.values(normalized)) {
+              console.log(`::add-mask::${value}`);
+            }
+            fs.appendFileSync(process.env.GITHUB_ENV, `AZURE_CLIENT_ID=${normalized.clientId}\n`);
+            fs.appendFileSync(process.env.GITHUB_ENV, `AZURE_CLIENT_SECRET=${normalized.clientSecret}\n`);
+            fs.appendFileSync(process.env.GITHUB_ENV, `AZURE_TENANT_ID=${normalized.tenantId}\n`);
+            fs.appendFileSync(process.env.GITHUB_ENV, `AZURE_SUBSCRIPTION_ID=${normalized.subscriptionId}\n`);
           '
+
+      - name: Azure service principal login
+        run: |
+          az login \
+            --service-principal \
+            --username "$AZURE_CLIENT_ID" \
+            --password "$AZURE_CLIENT_SECRET" \
+            --tenant "$AZURE_TENANT_ID"
+
+      - name: Select Azure subscription
+        run: |
+          az account set --subscription "$AZURE_SUBSCRIPTION_ID"
+          az account show --query "{subscription:id, tenant:tenantId}" --output table
 
       - name: Resolve deployed API URL
         id: api
