@@ -24,6 +24,39 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Preflight Azure credentials secret is present
+        env:
+          AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+        run: |
+          if [ -z "$AZURE_CREDENTIALS" ]; then
+            echo "AZURE_CREDENTIALS is empty or not available to this workflow."
+            exit 1
+          fi
+
+      - name: Preflight Azure credentials JSON shape
+        env:
+          AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+        run: |
+          node -e '
+            const raw = process.env.AZURE_CREDENTIALS;
+            let parsed;
+            try {
+              parsed = JSON.parse(raw);
+            } catch {
+              console.error("AZURE_CREDENTIALS is not valid JSON.");
+              process.exit(1);
+            }
+
+            const required = ["clientId", "clientSecret", "tenantId", "subscriptionId"];
+            const missing = required.filter((key) => !parsed[key]);
+            if (missing.length > 0) {
+              console.error(`AZURE_CREDENTIALS is missing required field(s): ${missing.join(", ")}`);
+              process.exit(1);
+            }
+
+            console.log("AZURE_CREDENTIALS has the expected service principal JSON shape.");
+          '
+
       - name: Log in to Azure
         uses: azure/login@v2
         with:
