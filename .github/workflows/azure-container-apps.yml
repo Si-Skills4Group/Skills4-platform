@@ -25,82 +25,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Preflight Azure credentials secret is present
-        env:
-          AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
-        run: |
-          if [ -z "$AZURE_CREDENTIALS" ]; then
-            echo "AZURE_CREDENTIALS is empty or not available to this workflow."
-            exit 1
-          fi
-
-      - name: Preflight Azure credentials JSON shape
-        env:
-          AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
-        run: |
-          node -e '
-            const raw = process.env.AZURE_CREDENTIALS;
-            let parsed;
-            try {
-              parsed = JSON.parse(raw);
-            } catch {
-              console.error("AZURE_CREDENTIALS is not valid JSON.");
-              process.exit(1);
-            }
-
-            const normalized = {
-              clientId: parsed.clientId ?? parsed.appId,
-              clientSecret: parsed.clientSecret ?? parsed.password,
-              tenantId: parsed.tenantId ?? parsed.tenant,
-              subscriptionId: parsed.subscriptionId ?? process.env.AZURE_SUBSCRIPTION_ID,
-            };
-
-            const required = ["clientId", "clientSecret", "tenantId", "subscriptionId"];
-            const missing = required.filter((key) => !parsed[key]);
-            const normalizedMissing = required.filter((key) => !normalized[key]);
-            if (normalizedMissing.length > 0) {
-              console.error(`AZURE_CREDENTIALS is missing required field(s): ${normalizedMissing.join(", ")}`);
-              process.exit(1);
-            }
-
-            console.log("AZURE_CREDENTIALS can be normalized to a service principal login shape.");
-          '
-
-      - name: Normalize Azure credentials
-        env:
-          AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
-        run: |
-          node -e '
-            const fs = require("fs");
-            const parsed = JSON.parse(process.env.AZURE_CREDENTIALS);
-            const normalized = {
-              clientId: parsed.clientId ?? parsed.appId,
-              clientSecret: parsed.clientSecret ?? parsed.password,
-              tenantId: parsed.tenantId ?? parsed.tenant,
-              subscriptionId: parsed.subscriptionId ?? process.env.AZURE_SUBSCRIPTION_ID,
-            };
-            for (const value of Object.values(normalized)) {
-              console.log(`::add-mask::${value}`);
-            }
-            fs.appendFileSync(process.env.GITHUB_ENV, `AZURE_CLIENT_ID=${normalized.clientId}\n`);
-            fs.appendFileSync(process.env.GITHUB_ENV, `AZURE_CLIENT_SECRET=${normalized.clientSecret}\n`);
-            fs.appendFileSync(process.env.GITHUB_ENV, `AZURE_TENANT_ID=${normalized.tenantId}\n`);
-            fs.appendFileSync(process.env.GITHUB_ENV, `AZURE_SUBSCRIPTION_ID=${normalized.subscriptionId}\n`);
-          '
-
-      - name: Azure service principal login
-        run: |
-          az login \
-            --service-principal \
-            --username "$AZURE_CLIENT_ID" \
-            --password "$AZURE_CLIENT_SECRET" \
-            --tenant "$AZURE_TENANT_ID"
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Select Azure subscription
         run: |
           az account set --subscription "$AZURE_SUBSCRIPTION_ID"
           az account show --query "{subscription:id, tenant:tenantId}" --output table
-
+          
+     
       - name: Resolve deployed API URL
         id: api
         run: |
