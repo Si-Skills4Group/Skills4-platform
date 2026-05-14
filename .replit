@@ -26,3 +26,10 @@ timeoutMs = 20000
 
 [nix]
 channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+AZURE_PG_HOST = "skills4crm-pg-07b768.postgres.database.azure.com"
+AZURE_PG_USER = "crmadmin"
+AZURE_PG_PORT = "5432"

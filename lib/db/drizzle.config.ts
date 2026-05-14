@@ -1,10 +1,24 @@
 import { defineConfig } from "drizzle-kit";
 import path from "path";
 
-const connectionString = process.env.AZURE_POSTGRES_URL ?? process.env.DATABASE_URL;
+function buildConnectionString(): string {
+  const azureHost = process.env.AZURE_PG_HOST;
+  const azureUser = process.env.AZURE_PG_USER;
+  const azurePort = process.env.AZURE_PG_PORT ?? "5432";
+  const azureDb = process.env.AZURE_PG_DATABASE;
+  const azurePass = process.env.AZURE_PG_PASSWORD;
 
-if (!connectionString) {
-  throw new Error("AZURE_POSTGRES_URL or DATABASE_URL must be set, ensure the database is provisioned");
+  if (azureHost && azureUser && azureDb && azurePass) {
+    const encoded = encodeURIComponent(azurePass);
+    return `postgresql://${azureUser}:${encoded}@${azureHost}:${azurePort}/${azureDb}?sslmode=require`;
+  }
+
+  const fallback = process.env.DATABASE_URL;
+  if (fallback) return fallback;
+
+  throw new Error(
+    "Database connection not configured. Set AZURE_PG_HOST, AZURE_PG_USER, AZURE_PG_DATABASE, and AZURE_PG_PASSWORD, or DATABASE_URL.",
+  );
 }
 
 export default defineConfig({
@@ -12,7 +26,7 @@ export default defineConfig({
   out: path.join(__dirname, "./migrations"),
   dialect: "postgresql",
   dbCredentials: {
-    url: connectionString,
-    ssl: process.env.AZURE_POSTGRES_URL ? "require" : undefined,
+    url: buildConnectionString(),
+    ssl: !!process.env.AZURE_PG_HOST ? "require" : undefined,
   },
 });
