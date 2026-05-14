@@ -4,7 +4,7 @@ This project is a pnpm workspace monorepo using TypeScript, designed as an inter
 
 # User Preferences
 
-I prefer concise and clear communication. I appreciate detailed explanations when introducing new concepts or significant changes. When making changes to the codebase, please prioritize an iterative approach, proposing small, focused modifications. Please ask for my approval before implementing any major architectural changes or introducing new external dependencies. Do not make changes to the `artifacts/api-server/src/lib/auth.ts` file or the `artifacts/crm/src/contexts/AuthContext.tsx` file without explicit instruction.
+I prefer concise and clear communication. I appreciate detailed explanations when introducing new concepts or significant changes. When making changes to the codebase, please prioritize an iterative approach, proposing small, focused modifications. Please ask for my approval before implementing any major architectural changes or introducing new external dependencies. Do not make changes to the `artifacts/api-server/src/lib/auth.ts` file or the `artifacts/crm/src/contexts/AuthContext.tsx` file without explicit instruction. Always ask for explicit approval before running any database push, migration, or schema change commands.
 
 # System Architecture
 
