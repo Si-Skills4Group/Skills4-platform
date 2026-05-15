@@ -96,7 +96,13 @@ export function getCallOutcomeDotColor(outcome: string | null | undefined): stri
 
 // ─── Lead Sources ─────────────────────────────────────────────────────────────
 
-export const LEAD_SOURCES = [
+export const WORKSTREAM_LEAD_SOURCES = [
+  { value: "dental",   label: "Dental" },
+  { value: "pharmacy", label: "Pharmacy" },
+  { value: "housing",  label: "Housing" },
+];
+
+export const CHANNEL_LEAD_SOURCES = [
   { value: "linkedin",   label: "LinkedIn" },
   { value: "cold_email", label: "Cold Email" },
   { value: "cold_call",  label: "Cold Call" },
@@ -107,6 +113,8 @@ export const LEAD_SOURCES = [
   { value: "website",    label: "Website" },
   { value: "other",      label: "Other" },
 ];
+
+export const LEAD_SOURCES = [...WORKSTREAM_LEAD_SOURCES, ...CHANNEL_LEAD_SOURCES];
 
 export const SORT_OPTIONS = [
   { value: "lastActivity",  label: "Last activity" },

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { WORKSTREAM_LEAD_SOURCES, CHANNEL_LEAD_SOURCES } from "@/components/sdr/constants";
 import {
   Plus, Search, LayoutGrid, List, Handshake, X, SlidersHorizontal,
   Building2, User2, CalendarClock, TrendingUp, GraduationCap, ChevronRight,
@@ -139,6 +140,7 @@ type EngFormState = {
   nextActionDate: string;
   nextActionNote: string;
   notes: string;
+  leadSource: string;
 };
 
 const DEFAULT_FORM: EngFormState = {
@@ -156,6 +158,7 @@ const DEFAULT_FORM: EngFormState = {
   nextActionDate: "",
   nextActionNote: "",
   notes: "",
+  leadSource: "",
 };
 
 function engToFormState(e: Engagement): EngFormState {
@@ -174,6 +177,7 @@ function engToFormState(e: Engagement): EngFormState {
     nextActionDate: e.nextActionDate ?? "",
     nextActionNote: e.nextActionNote ?? "",
     notes: e.notes ?? "",
+    leadSource: e.leadSource ?? "",
   };
 }
 
@@ -252,6 +256,26 @@ function EngagementForm({
         {form.engagementType === "sdr" && (
           <p className="text-xs text-muted-foreground">This prospect will be added to the SDR Queue in "New" stage and assigned to you as the SDR owner.</p>
         )}
+      </div>
+
+      {/* Workstream / Lead Source */}
+      <div className="space-y-1.5">
+        <Label>{form.engagementType === "sdr" ? "Workstream" : "Lead Source"}</Label>
+        <Select value={form.leadSource} onValueChange={(v) => set("leadSource", v)}>
+          <SelectOption value="">— Select —</SelectOption>
+          {form.engagementType === "sdr" && (
+            <>
+              <SelectOption value="" disabled>── Workstream ──</SelectOption>
+              {WORKSTREAM_LEAD_SOURCES.map((s) => (
+                <SelectOption key={s.value} value={s.value}>{s.label}</SelectOption>
+              ))}
+              <SelectOption value="" disabled>── Channel ──</SelectOption>
+            </>
+          )}
+          {CHANNEL_LEAD_SOURCES.map((s) => (
+            <SelectOption key={s.value} value={s.value}>{s.label}</SelectOption>
+          ))}
+        </Select>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -692,6 +716,7 @@ export default function Engagements() {
       nextActionDate: form.nextActionDate || null,
       nextActionNote: form.nextActionNote || null,
       notes: form.notes || null,
+      leadSource: form.leadSource || null,
     };
     createMutation.mutate({ data: req });
   }
@@ -715,6 +740,7 @@ export default function Engagements() {
         nextActionDate: form.nextActionDate || null,
         nextActionNote: form.nextActionNote || null,
         notes: form.notes || null,
+        leadSource: form.leadSource || null,
       },
     });
   }
