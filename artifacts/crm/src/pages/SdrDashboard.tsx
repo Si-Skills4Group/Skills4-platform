@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/core-u
 import { formatDate, cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { WorkstreamFilter } from "@/components/sdr/WorkstreamFilter";
+import { useWorkstream } from "@/contexts/WorkstreamContext";
 
 // ─── Colours ─────────────────────────────────────────────────────────────────
 
@@ -149,8 +150,11 @@ function Empty({ label }: { label: string }) {
 
 export default function SdrDashboard() {
   const { user } = useAuth();
+  const { workstream } = useWorkstream();
 
-  const { data, isLoading, refetch } = useGetSdrDashboard({
+  const wsParam = workstream !== "all" ? { workstream } : undefined;
+
+  const { data, isLoading, refetch } = useGetSdrDashboard(wsParam, {
     query: { staleTime: 0, refetchInterval: 60_000 },
   });
 

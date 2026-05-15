@@ -600,6 +600,14 @@ export type ListContactsParams = {
   organisationId?: number;
 };
 
+export type GetSdrDashboardParams = {
+  workstream?: string;
+};
+
+export type GetSdrManagerReportParams = {
+  workstream?: string;
+};
+
 export type ListEngagementsParams = {
   search?: string;
   stage?: string;

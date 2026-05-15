@@ -1,5 +1,6 @@
 import { RefreshCw, Users, CalendarCheck, Trophy, AlertTriangle, Phone, TrendingUp, ClipboardList } from "lucide-react";
 import { WorkstreamFilter } from "@/components/sdr/WorkstreamFilter";
+import { useWorkstream } from "@/contexts/WorkstreamContext";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
   LabelList,
@@ -245,7 +246,10 @@ const EMPTY_REPORT: SdrManagerReport = {
 };
 
 export default function SdrReport() {
-  const { data, isLoading, refetch, isRefetching, dataUpdatedAt } = useGetSdrManagerReport({
+  const { workstream } = useWorkstream();
+  const wsParam = workstream !== "all" ? { workstream } : undefined;
+
+  const { data, isLoading, refetch, isRefetching, dataUpdatedAt } = useGetSdrManagerReport(wsParam, {
     query: { staleTime: 0, refetchInterval: 5 * 60_000 },
   });
 

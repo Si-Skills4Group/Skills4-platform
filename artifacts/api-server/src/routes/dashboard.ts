@@ -140,6 +140,7 @@ router.get("/sdr", async (req, res) => {
     const now = new Date();
     const today = now.toISOString().split("T")[0];
     const userId = req.user?.id ?? null;
+    const workstream = (req.query.workstream as string | undefined) || undefined;
 
     // Start of current ISO week (Monday)
     const dayOfWeek = now.getDay(); // 0=Sun
@@ -152,7 +153,10 @@ router.get("/sdr", async (req, res) => {
     weekEnd.setDate(weekStart.getDate() + 6);
     const weekEndStr = weekEnd.toISOString().split("T")[0];
 
-    const sdrOnly = eq(engagementsTable.engagementType, "sdr");
+    const sdrOnly = and(
+      eq(engagementsTable.engagementType, "sdr"),
+      workstream ? eq(engagementsTable.leadSource, workstream) : undefined,
+    )!
 
     const TERMINAL_STAGES = ["qualified", "disqualified", "unresponsive", "do_not_contact", "bad_data", "changed_job", "nurture"];
 
@@ -315,8 +319,12 @@ router.get("/sdr/manager", async (req, res) => {
     const now = new Date();
     const today = now.toISOString().split("T")[0];
     const sdrOwnerTable = alias(usersTable, "sdr_owner");
+    const workstream = (req.query.workstream as string | undefined) || undefined;
 
-    const sdrOnly = eq(engagementsTable.engagementType, "sdr");
+    const sdrOnly = and(
+      eq(engagementsTable.engagementType, "sdr"),
+      workstream ? eq(engagementsTable.leadSource, workstream) : undefined,
+    )!
 
     // ── 1. Rep performance ──────────────────────────────────────────────────
     const repPerfRows = await db
