@@ -153,9 +153,17 @@ router.get("/sdr", async (req, res) => {
     weekEnd.setDate(weekStart.getDate() + 6);
     const weekEndStr = weekEnd.toISOString().split("T")[0];
 
+    const orgSectorSubquery = workstream
+      ? db.select({ id: organisationsTable.id }).from(organisationsTable)
+          .where(sql`lower(${organisationsTable.sector}) = ${workstream}`)
+      : undefined;
+
     const sdrOnly = and(
       eq(engagementsTable.engagementType, "sdr"),
-      workstream ? eq(engagementsTable.leadSource, workstream) : undefined,
+      workstream ? or(
+        eq(engagementsTable.leadSource, workstream),
+        inArray(engagementsTable.organisationId, orgSectorSubquery!),
+      ) : undefined,
     )!
 
     const TERMINAL_STAGES = ["qualified", "disqualified", "unresponsive", "do_not_contact", "bad_data", "changed_job", "nurture"];
@@ -321,9 +329,17 @@ router.get("/sdr/manager", async (req, res) => {
     const sdrOwnerTable = alias(usersTable, "sdr_owner");
     const workstream = (req.query.workstream as string | undefined) || undefined;
 
+    const orgSectorSubqueryMgr = workstream
+      ? db.select({ id: organisationsTable.id }).from(organisationsTable)
+          .where(sql`lower(${organisationsTable.sector}) = ${workstream}`)
+      : undefined;
+
     const sdrOnly = and(
       eq(engagementsTable.engagementType, "sdr"),
-      workstream ? eq(engagementsTable.leadSource, workstream) : undefined,
+      workstream ? or(
+        eq(engagementsTable.leadSource, workstream),
+        inArray(engagementsTable.organisationId, orgSectorSubqueryMgr!),
+      ) : undefined,
     )!
 
     // ── 1. Rep performance ──────────────────────────────────────────────────

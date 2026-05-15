@@ -60,6 +60,11 @@ const STATUS_BADGE_VARIANTS: Record<OrganisationStatus, "success" | "warning" | 
 };
 
 const SECTORS = [
+  // Workstreams
+  "Dental",
+  "Pharmacy",
+  "Housing",
+  // Industries
   "Technology & Digital",
   "Manufacturing",
   "Energy & Utilities",

@@ -7,7 +7,7 @@ import {
   Voicemail, PhoneForwarded, CheckCircle2, Plus, RotateCcw, Send, Mail,
 } from "lucide-react";
 import {
-  useListEngagements, useUpdateEngagement, useCreateTask,
+  useListEngagements, useUpdateEngagement, useCreateTask, useListOrganisations,
   useListUsers, useHandoverEngagement, useLogCall,
 } from "@workspace/api-client-react";
 import type { Engagement, SdrStage, CallOutcome } from "@workspace/api-client-react";
@@ -610,6 +610,11 @@ export default function SdrQueue() {
     { query: { staleTime: 0 } }
   );
   const { data: users = [] } = useListUsers();
+  const { data: orgs = [] } = useListOrganisations();
+  const orgSectorMap = useMemo(
+    () => new Map(orgs.map((o) => [o.id, o.sector?.toLowerCase()])),
+    [orgs]
+  );
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["/api/engagements"] });
 
@@ -627,7 +632,10 @@ export default function SdrQueue() {
 
   const filtered = useMemo(() => {
     let list = rawEngagements;
-    if (workstream !== "all") list = list.filter((e) => e.leadSource?.toLowerCase() === workstream);
+    if (workstream !== "all") list = list.filter((e) =>
+      e.leadSource?.toLowerCase() === workstream ||
+      orgSectorMap.get(e.organisationId ?? -1) === workstream
+    );
     if (funnelFilter) list = list.filter((e) => e.sdrStage === funnelFilter);
     if (filters.owner) list = list.filter((e) => String(e.sdrOwnerUserId) === filters.owner);
     if (filters.leadSource) list = list.filter((e) => e.leadSource === filters.leadSource);
