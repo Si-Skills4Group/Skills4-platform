@@ -12,6 +12,7 @@ import type { SdrDashboardSummary } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/core-ui";
 import { formatDate, cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { WorkstreamFilter } from "@/components/sdr/WorkstreamFilter";
 
 // ─── Colours ─────────────────────────────────────────────────────────────────
 
@@ -193,13 +194,16 @@ export default function SdrDashboard() {
             {" "}Refreshes every minute.
           </p>
         </div>
-        <button
-          onClick={() => refetch()}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground border rounded-lg px-3 py-2 hover:text-foreground transition-colors bg-white mt-1"
-        >
-          <RefreshCw size={13} className={cn(isLoading && "animate-spin")} />
-          Refresh
-        </button>
+        <div className="flex items-center gap-2 mt-1">
+          <WorkstreamFilter />
+          <button
+            onClick={() => refetch()}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground border rounded-lg px-3 py-2 hover:text-foreground transition-colors bg-white"
+          >
+            <RefreshCw size={13} className={cn(isLoading && "animate-spin")} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* Metric Cards */}

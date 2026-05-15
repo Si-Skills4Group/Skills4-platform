@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
+import { WorkstreamFilter } from "@/components/sdr/WorkstreamFilter";
+import { useWorkstream } from "@/contexts/WorkstreamContext";
 import {
   SlidersHorizontal, Search, RefreshCw, ArrowUpDown, ChevronDown,
   CalendarCheck, AlertTriangle, Trophy, Phone, PhoneCall, PhoneOff,
@@ -593,6 +595,7 @@ function sortEngagements(engs: Engagement[], sort: string): Engagement[] {
 
 export default function SdrQueue() {
   const queryClient = useQueryClient();
+  const { workstream } = useWorkstream();
 
   const [funnelFilter, setFunnelFilter] = useState("");
   const [search, setSearch] = useState("");
@@ -624,6 +627,7 @@ export default function SdrQueue() {
 
   const filtered = useMemo(() => {
     let list = rawEngagements;
+    if (workstream !== "all") list = list.filter((e) => e.leadSource?.toLowerCase() === workstream);
     if (funnelFilter) list = list.filter((e) => e.sdrStage === funnelFilter);
     if (filters.owner) list = list.filter((e) => String(e.sdrOwnerUserId) === filters.owner);
     if (filters.leadSource) list = list.filter((e) => e.leadSource === filters.leadSource);
@@ -743,9 +747,12 @@ export default function SdrQueue() {
             )}
           </p>
         </div>
-        <Button variant="outline" size="sm" className="gap-1.5 h-8" onClick={() => refetch()}>
-          <RefreshCw size={13} className={cn(isLoading && "animate-spin")} /> Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <WorkstreamFilter />
+          <Button variant="outline" size="sm" className="gap-1.5 h-8" onClick={() => refetch()}>
+            <RefreshCw size={13} className={cn(isLoading && "animate-spin")} /> Refresh
+          </Button>
+        </div>
       </div>
 
       {/* ── Funnel Bar ── */}

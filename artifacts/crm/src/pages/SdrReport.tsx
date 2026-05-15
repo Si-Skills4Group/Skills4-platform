@@ -1,4 +1,5 @@
 import { RefreshCw, Users, CalendarCheck, Trophy, AlertTriangle, Phone, TrendingUp, ClipboardList } from "lucide-react";
+import { WorkstreamFilter } from "@/components/sdr/WorkstreamFilter";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
   LabelList,
@@ -282,14 +283,17 @@ export default function SdrReport() {
               </p>
             </div>
           </div>
-          <button
-            onClick={() => refetch()}
-            disabled={isLoading || isRefetching}
-            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border rounded-lg px-3 py-1.5 bg-white hover:bg-muted/30 transition-colors disabled:opacity-50"
-          >
-            <RefreshCw size={12} className={cn(isRefetching && "animate-spin")} />
-            Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <WorkstreamFilter />
+            <button
+              onClick={() => refetch()}
+              disabled={isLoading || isRefetching}
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border rounded-lg px-3 py-1.5 bg-white hover:bg-muted/30 transition-colors disabled:opacity-50"
+            >
+              <RefreshCw size={12} className={cn(isRefetching && "animate-spin")} />
+              Refresh
+            </button>
+          </div>
         </div>
       </div>
 
