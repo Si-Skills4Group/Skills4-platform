@@ -47,7 +47,7 @@ if (isProduction && (!jwtSecretRaw || jwtSecretRaw === DEV_JWT_FALLBACK)) {
 export const config = Object.freeze({
   nodeEnv,
   isProduction,
-  port: readNumber("PORT"),
+  port: process.env["PORT"] ? readNumber("PORT") : 8080,
   databaseUrl: readString("DATABASE_URL"),
   jwtSecret: jwtSecretRaw && jwtSecretRaw !== "" ? jwtSecretRaw : DEV_JWT_FALLBACK,
   jwtExpiresIn: readString("JWT_EXPIRES_IN", "7d"),
